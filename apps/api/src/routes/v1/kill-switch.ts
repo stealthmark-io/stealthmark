@@ -8,6 +8,7 @@ import {
   listKillSwitches,
 } from '../../services/kill-switch.js'
 import { logAuditEvent } from '../../services/audit.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 const triggerKillSwitchSchema = z.object({
   targetType: z.enum(['organization', 'agent', 'capability', 'api_key']),
@@ -68,7 +69,9 @@ export async function killSwitchRoutes(app: FastifyInstance, options: { db: DbCl
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     try {
       const disarmed = await disarmKillSwitch(db, {

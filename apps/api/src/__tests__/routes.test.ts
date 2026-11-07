@@ -175,7 +175,7 @@ describe('API v1 Routes', () => {
       update: () => ({
         set: () => ({
           where: () => ({
-            returning: async () => [{ id: 'agent-123', status: 'suspended' }],
+            returning: async () => [{ id: '00000000-0000-4000-8000-000000000123', status: 'suspended' }],
           }),
         }),
       }),
@@ -184,7 +184,7 @@ describe('API v1 Routes', () => {
 
     const res = await app.inject({
       method: 'POST',
-      url: '/v1/agents/agent-123/suspend',
+      url: '/v1/agents/00000000-0000-4000-8000-000000000123/suspend',
       headers: authHeaders,
     })
 

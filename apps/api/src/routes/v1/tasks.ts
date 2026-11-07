@@ -5,6 +5,7 @@ import { tasks, capabilities, type DbClient } from '@stealthmark/db'
 import { createTraceId, recordTraceStep, getExecutionTrace } from '../../services/traces.js'
 import { recordUsage } from '../../services/usage.js'
 import { orgScope, resolveOrgAccess } from '../../lib/org-context.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 const createTaskSchema = z.object({
   capability_id: z.string().uuid('Valid capability UUID required'),
@@ -135,7 +136,9 @@ export async function tasksRoutes(app: FastifyInstance, options: { db: DbClient 
 
   // GET /v1/tasks/:id
   app.get('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [task] = await db
       .select()
@@ -155,7 +158,9 @@ export async function tasksRoutes(app: FastifyInstance, options: { db: DbClient 
 
   // GET /v1/tasks/:id/trace
   app.get('/:id/trace', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [task] = await db
       .select({ id: tasks.id, traceId: tasks.traceId })
@@ -176,7 +181,9 @@ export async function tasksRoutes(app: FastifyInstance, options: { db: DbClient 
 
   // POST /v1/tasks/:id/cancel
   app.post('/:id/cancel', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [task] = await db
       .update(tasks)

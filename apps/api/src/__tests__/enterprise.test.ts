@@ -47,7 +47,7 @@ describe('Phase 6 — Enterprise (Policy Engine, Audit Trail, Kill Switch, FinOp
   }
 
   const mockKillSwitch = {
-    id: 'ks-1',
+    id: '00000000-0000-4000-8000-0000000000e1',
     orgId: sampleOrgId,
     targetType: 'agent',
     targetId: sampleAgentId,
@@ -348,7 +348,7 @@ describe('Phase 6 — Enterprise (Policy Engine, Audit Trail, Kill Switch, FinOp
 
       const response = await app.inject({
         method: 'POST',
-        url: '/v1/enterprise/kill-switch/ks-1/disarm',
+        url: '/v1/enterprise/kill-switch/00000000-0000-4000-8000-0000000000e1/disarm',
         headers: authHeaders,
       })
 

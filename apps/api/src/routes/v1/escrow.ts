@@ -11,6 +11,7 @@ import {
   getEscrow,
   listEscrows,
 } from '../../services/escrow.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 const createEscrowSchema = z.object({
   contractId: z.string().uuid('Valid contract UUID required'),
@@ -68,7 +69,9 @@ export async function escrowRoutes(app: FastifyInstance, options: { db: DbClient
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const parseResult = submitWorkSchema.safeParse(request.body)
     if (!parseResult.success) {
       return reply.code(400).send({ error: 'validation_error', details: parseResult.error.flatten() })
@@ -98,7 +101,9 @@ export async function escrowRoutes(app: FastifyInstance, options: { db: DbClient
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     try {
       const released = await validateAndRelease(db, {
@@ -123,7 +128,9 @@ export async function escrowRoutes(app: FastifyInstance, options: { db: DbClient
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const parseResult = disputeSchema.safeParse(request.body)
     if (!parseResult.success) {
       return reply.code(400).send({ error: 'validation_error', details: parseResult.error.flatten() })
@@ -153,7 +160,9 @@ export async function escrowRoutes(app: FastifyInstance, options: { db: DbClient
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     try {
       const refunded = await refundEscrow(db, {
@@ -173,7 +182,9 @@ export async function escrowRoutes(app: FastifyInstance, options: { db: DbClient
 
   // GET /v1/commerce/escrow/:id — Get escrow detail
   app.get('/commerce/escrow/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const escrow = await getEscrow(db, id)
     if (!escrow) {
       return reply.code(404).send({ error: 'not_found', message: 'Escrow not found' })

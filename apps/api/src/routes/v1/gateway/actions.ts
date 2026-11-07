@@ -10,6 +10,8 @@ import {
   generateAgentManifest,
 } from '../../../services/action-schema.js'
 import { getSiteById, getSiteByDomain } from '../../../services/site-registration.js'
+import { idParams, parseParams } from '../../../lib/params.js'
+import { replyWithDomainError } from './errors.js'
 import { loadOwnedSite, type GatewayDeps } from './shared.js'
 
 const createActionSchemaBody = z.object({
@@ -37,6 +39,18 @@ const updateActionSchemaBody = z.object({
   enabled: z.boolean().optional(),
 })
 
+const actionLookupParams = z.object({
+  id: z.string().uuid('Valid site UUID required'),
+  slugOrId: z.string(),
+})
+
+const siteActionParams = z.object({
+  id: z.string().uuid('Valid site UUID required'),
+  actionId: z.string().uuid('Valid action UUID required'),
+})
+
+const uuidString = z.string().uuid()
+
 function baseUrlOf(request: { headers: { host?: string }; protocol?: string }): string {
   const host = request.headers.host || 'api.stealthmark.io'
   const protocol = request.protocol || 'https'
@@ -46,7 +60,9 @@ function baseUrlOf(request: { headers: { host?: string }; protocol?: string }): 
 export async function registerActionRoutes(app: FastifyInstance, { db }: GatewayDeps) {
   // POST /v1/gateway/sites/:id/actions — Register a new Action Schema
   app.post('/sites/:id/actions', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -66,7 +82,9 @@ export async function registerActionRoutes(app: FastifyInstance, { db }: Gateway
 
   // GET /v1/gateway/sites/:id/actions — List Action Schemas for a site (owner only: disabled schemas are included)
   app.get('/sites/:id/actions', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -77,12 +95,14 @@ export async function registerActionRoutes(app: FastifyInstance, { db }: Gateway
 
   // GET /v1/gateway/sites/:id/actions/:slugOrId — Get Action Schema by slug or ID (owner only)
   app.get('/sites/:id/actions/:slugOrId', async (request, reply) => {
-    const { id, slugOrId } = request.params as { id: string; slugOrId: string }
+    const params = parseParams(actionLookupParams, request, reply)
+    if (!params) return reply
+    const { id, slugOrId } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
     let action = await getActionSchemaBySlug(db, id, slugOrId)
-    if (!action) {
+    if (!action && uuidString.safeParse(slugOrId).success) {
       action = await getActionSchemaById(db, slugOrId)
     }
 
@@ -95,7 +115,9 @@ export async function registerActionRoutes(app: FastifyInstance, { db }: Gateway
 
   // PUT /v1/gateway/sites/:id/actions/:actionId — Update an Action Schema
   app.put('/sites/:id/actions/:actionId', async (request, reply) => {
-    const { id, actionId } = request.params as { id: string; actionId: string }
+    const params = parseParams(siteActionParams, request, reply)
+    if (!params) return reply
+    const { id, actionId } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -115,7 +137,9 @@ export async function registerActionRoutes(app: FastifyInstance, { db }: Gateway
 
   // DELETE /v1/gateway/sites/:id/actions/:actionId — Delete an Action Schema
   app.delete('/sites/:id/actions/:actionId', async (request, reply) => {
-    const { id, actionId } = request.params as { id: string; actionId: string }
+    const params = parseParams(siteActionParams, request, reply)
+    if (!params) return reply
+    const { id, actionId } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -134,7 +158,9 @@ export async function registerActionRoutes(app: FastifyInstance, { db }: Gateway
 
   // GET /v1/gateway/sites/:id/agent-manifest — Standardized Agent Manifest (agent.json)
   app.get('/sites/:id/agent-manifest', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await getSiteById(db, id)
     if (!site) {
       return reply.code(404).send({ error: 'not_found', message: `Site ${id} not found` })
@@ -146,11 +172,15 @@ export async function registerActionRoutes(app: FastifyInstance, { db }: Gateway
   // GET /v1/gateway/manifest/:domain — Agent Manifest by domain
   app.get('/manifest/:domain', async (request, reply) => {
     const { domain } = request.params as { domain: string }
-    const site = await getSiteByDomain(db, domain)
-    if (!site) {
-      return reply.code(404).send({ error: 'not_found', message: `No registered gateway site found for domain "${domain}"` })
-    }
+    try {
+      const site = await getSiteByDomain(db, domain)
+      if (!site) {
+        return reply.code(404).send({ error: 'not_found', message: `No registered gateway site found for domain "${domain}"` })
+      }
 
-    return reply.send(await generateAgentManifest(db, site.id, baseUrlOf(request)))
+      return reply.send(await generateAgentManifest(db, site.id, baseUrlOf(request)))
+    } catch (err) {
+      return replyWithDomainError(err, reply)
+    }
   })
 }

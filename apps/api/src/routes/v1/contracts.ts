@@ -9,6 +9,7 @@ import {
   listContracts,
   type ContractTerms,
 } from '../../services/contracts.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 const contractTermsSchema = z.object({
   pricing: z.object({
@@ -85,7 +86,9 @@ export async function contractsRoutes(app: FastifyInstance, options: { db: DbCli
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     try {
       const updated = await signContract(db, {
@@ -105,7 +108,9 @@ export async function contractsRoutes(app: FastifyInstance, options: { db: DbCli
 
   // GET /v1/commerce/contracts/:id — Get contract and verify terms hash
   app.get('/commerce/contracts/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const contract = await getContract(db, id)
     if (!contract) {
       return reply.code(404).send({ error: 'not_found', message: 'Contract not found' })

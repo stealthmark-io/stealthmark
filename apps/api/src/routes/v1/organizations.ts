@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { organizations, users, type DbClient } from '@stealthmark/db'
 import { isAuthorizedForOrg, isPlatformCaller } from '../../lib/org-context.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 const createOrgSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -82,7 +83,9 @@ export async function organizationsRoutes(app: FastifyInstance, options: { db: D
 
   // GET /v1/organizations/:id
   app.get('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     if (!isAuthorizedForOrg(request, id)) {
       return reply.code(404).send(orgNotFound())
     }
@@ -105,7 +108,9 @@ export async function organizationsRoutes(app: FastifyInstance, options: { db: D
 
   // PATCH /v1/organizations/:id
   app.patch('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     if (!isAuthorizedForOrg(request, id)) {
       return reply.code(404).send(orgNotFound())
     }
@@ -145,7 +150,9 @@ export async function organizationsRoutes(app: FastifyInstance, options: { db: D
 
   // POST /v1/organizations/:id/users
   app.post('/:id/users', async (request, reply) => {
-    const { id: orgId } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id: orgId } = params
     if (!isAuthorizedForOrg(request, orgId)) {
       return reply.code(404).send(orgNotFound())
     }
@@ -194,7 +201,9 @@ export async function organizationsRoutes(app: FastifyInstance, options: { db: D
 
   // GET /v1/organizations/:id/users
   app.get('/:id/users', async (request, reply) => {
-    const { id: orgId } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id: orgId } = params
     if (!isAuthorizedForOrg(request, orgId)) {
       return reply.code(404).send(orgNotFound())
     }

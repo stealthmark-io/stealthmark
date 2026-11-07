@@ -4,6 +4,7 @@ import { eq, and, desc, sql } from 'drizzle-orm'
 import { capabilities, organizations, reviews, tasks, type DbClient } from '@stealthmark/db'
 import '../../middleware/api-key-auth.js'
 import { calculateTrustScore } from '../../services/trust.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 const createReviewSchema = z.object({
   taskId: z.string().uuid('A valid task UUID is required to verify execution authenticity'),
@@ -21,7 +22,9 @@ export async function reviewsRoutes(app: FastifyInstance, options: { db: DbClien
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id: capabilityId } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id: capabilityId } = params
     const parseResult = createReviewSchema.safeParse(request.body)
     if (!parseResult.success) {
       return reply.code(400).send({ error: 'validation_error', details: parseResult.error.flatten() })
@@ -128,7 +131,9 @@ export async function reviewsRoutes(app: FastifyInstance, options: { db: DbClien
 
   // GET /v1/capabilities/:id/reviews — List verified reviews for a capability
   app.get('/capabilities/:id/reviews', async (request, reply) => {
-    const { id: capabilityId } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id: capabilityId } = params
 
     const [cap] = await db
       .select({ id: capabilities.id, name: capabilities.name })

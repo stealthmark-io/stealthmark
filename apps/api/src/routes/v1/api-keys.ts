@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { canGrantScopes, orgScope, resolveOrgAccess } from '../../lib/org-context.js'
+import { idParams, parseParams } from '../../lib/params.js'
 import { eq, and } from 'drizzle-orm'
 import { apiKeys, type DbClient } from '@stealthmark/db'
 import { generateApiKey } from '../../lib/crypto.js'
@@ -104,7 +105,9 @@ export async function apiKeysRoutes(app: FastifyInstance, options: { db: DbClien
 
   // DELETE /v1/api-keys/:id
   app.delete('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [updated] = await db
       .update(apiKeys)

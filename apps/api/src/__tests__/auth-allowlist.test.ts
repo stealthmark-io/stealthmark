@@ -28,7 +28,8 @@ describe('Sprint 0 — public path allowlist is exact', () => {
     const res = await app.inject({ method: 'GET', url: '/v1/users/public-key', headers: authHeaders })
     await app.close()
 
-    expect(res.statusCode).toBe(404)
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toBe('validation_error')
   })
 
   it.each(['/v1/gateway/public-key', '/v1/gateway/jwks', '/v1/gateway/public-key?format=jwk'])(

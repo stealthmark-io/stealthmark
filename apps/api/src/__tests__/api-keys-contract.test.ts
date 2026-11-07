@@ -62,7 +62,7 @@ describe('A generated key authenticates against the API', () => {
     const app = await appFor(keyHash, keyPrefix)
     const res = await app.inject({
       method: 'GET',
-      url: '/v1/users/public-key',
+      url: '/v1/users/00000000-0000-4000-8000-000000000001',
       headers: { authorization: `Bearer ${key}` },
     })
     await app.close()
@@ -73,7 +73,7 @@ describe('A generated key authenticates against the API', () => {
   it('accepts the same key through the x-api-key header', async () => {
     const { key, keyHash, keyPrefix } = generateApiKey()
     const app = await appFor(keyHash, keyPrefix)
-    const res = await app.inject({ method: 'GET', url: '/v1/users/public-key', headers: { 'x-api-key': key } })
+    const res = await app.inject({ method: 'GET', url: '/v1/users/00000000-0000-4000-8000-000000000001', headers: { 'x-api-key': key } })
     await app.close()
 
     expect(res.statusCode).toBe(404)

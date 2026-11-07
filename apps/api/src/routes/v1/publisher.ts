@@ -7,6 +7,7 @@ import { generateEmbedding } from '../../services/embeddings.js'
 import { calculateTrustScore } from '../../services/trust.js'
 import { calculateQualityScore } from '../../services/evaluation.js'
 import { evaluateAndAwardBadges, getCapabilityBadges } from '../../services/badges.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 const registerPublisherSchema = z.object({
   tier: z.enum(['standard', 'verified', 'enterprise']).default('standard'),
@@ -282,7 +283,9 @@ export async function publisherRoutes(app: FastifyInstance, options: { db: DbCli
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const parseResult = updatePublisherCapabilitySchema.safeParse(request.body)
     if (!parseResult.success) {
       return reply.code(400).send({ error: 'validation_error', details: parseResult.error.flatten() })

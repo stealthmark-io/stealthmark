@@ -10,6 +10,7 @@ import {
 } from '../../../services/site-registration.js'
 import { requireScopes } from '../../../middleware/api-key-auth.js'
 import { isPlatformCaller, resolveOrgAccess } from '../../../lib/org-context.js'
+import { idParams, parseParams } from '../../../lib/params.js'
 import { replyWithDomainError } from './errors.js'
 import { loadOwnedSite, parseLimit, type GatewayDeps } from './shared.js'
 
@@ -85,7 +86,9 @@ export async function registerSiteRoutes(app: FastifyInstance, { db }: GatewayDe
 
   // GET /v1/gateway/sites/:id — Get site by ID (BOLA protected)
   app.get('/sites/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
     return reply.send(site)
@@ -93,7 +96,9 @@ export async function registerSiteRoutes(app: FastifyInstance, { db }: GatewayDe
 
   // PATCH /v1/gateway/sites/:id — Update site settings/policy (BOLA protected)
   app.patch('/sites/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -119,7 +124,9 @@ export async function registerSiteRoutes(app: FastifyInstance, { db }: GatewayDe
 
   // POST /v1/gateway/sites/:id/verify — Verify DNS TXT record (BOLA protected)
   app.post('/sites/:id/verify', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -136,7 +143,9 @@ export async function registerSiteRoutes(app: FastifyInstance, { db }: GatewayDe
 
   // DELETE /v1/gateway/sites/:id — Deregister a site (requires admin scope + BOLA check)
   app.delete('/sites/:id', { preHandler: [requireScopes('admin')] }, async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
