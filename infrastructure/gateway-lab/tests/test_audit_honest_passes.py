@@ -69,6 +69,20 @@ def test_internetdb_answer_without_exposure_is_a_measured_pass(monkeypatch):
     assert ports_check(monkeypatch).status == "pass"
 
 
+def test_cloudflare_edge_ip_is_not_blamed_for_shared_edge_cves(monkeypatch):
+    def must_not_query(req, timeout):
+        raise AssertionError("InternetDB must not be queried for a shared CDN edge address")
+
+    monkeypatch.setattr(urllib.request, "urlopen", must_not_query)
+    monkeypatch.setattr(
+        audit_v2, "_dns_resolver_factory", lambda: FakeDNSResolver({("example.com", "A"): ["104.21.33.252"]})
+    )
+    check = next(c for c in audit_v2.query_dns("example.com") if c.id == "exposed_ports_and_cves")
+    assert check.status == "not_assessed"
+    assert "Cloudflare" in check.detail
+    assert "CVE-" not in check.detail
+
+
 def test_internetdb_cves_are_reported_as_listed_not_verified(monkeypatch):
     internetdb_answers(monkeypatch, {"ports": [443, 3389], "vulns": ["CVE-2024-6387"]})
     check = ports_check(monkeypatch)
