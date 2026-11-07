@@ -70,6 +70,24 @@ _clock: Callable[[], float] = time.time
 _audit_slots = asyncio.Semaphore(MAX_CONCURRENT_AUDITS)
 _audit_counts: "OrderedDict[tuple[str, int], int]" = OrderedDict()
 
+# Cloudflare's published IPv4 edge ranges (cloudflare.com/ips-v4). These anycast addresses are shared
+# by every proxied site, so InternetDB ports and CVEs for them describe Cloudflare, not the origin.
+CLOUDFLARE_EDGE_NETWORKS = tuple(ipaddress.ip_network(cidr) for cidr in (
+    "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22",
+    "141.101.64.0/18", "108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20",
+    "197.234.240.0/22", "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+    "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+))
+
+
+def is_cloudflare_edge(address: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    return any(ip in network for network in CLOUDFLARE_EDGE_NETWORKS)
+
+
 # Pluggable DNS resolver factory for hermetic testing
 _dns_resolver_factory: Callable[[], dns.resolver.Resolver] = lambda: dns.resolver.Resolver()
 
@@ -307,7 +325,17 @@ def query_dns(domain: str) -> list[CheckItem]:
     # 5. Passive Infrastructure Port & Real CVE Recon (Shodan InternetDB)
     ipv4_list = [ip for ip in addresses if ":" not in ip]
     primary_ip = ipv4_list[0] if ipv4_list else None
-    if primary_ip:
+    if primary_ip and is_cloudflare_edge(primary_ip):
+        checks.append(CheckItem(
+            id="exposed_ports_and_cves",
+            title="Passive Port & CVE Intelligence (InternetDB)",
+            status="not_assessed",
+            detail=(
+                f"{primary_ip} is a shared Cloudflare edge address: InternetDB ports and CVEs for it describe "
+                "Cloudflare's edge, not this domain's origin server, so origin exposure was not assessed."
+            ),
+        ))
+    elif primary_ip:
         critical_port_map = {
             3389: "RDP",
             1433: "MS-SQL",

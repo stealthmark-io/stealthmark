@@ -1,4 +1,4 @@
-import { sanitizeAndValidateDomain } from '@/lib/security/network-guard';
+import { isCloudflareIpv4, sanitizeAndValidateDomain } from '@/lib/security/network-guard';
 import { gatewayInternalSecret } from '@/lib/auth';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { chargePaidKey, refundCharge, type ChargeResult } from '@/lib/credit-meter';
 import { signBadge, verifyScanUnlockToken } from '@/lib/scan-unlock';
-import { computeExecutiveScorecard, type AuditReport } from '@/lib/readiness-report';
+import { computeExecutiveScorecard, SCAN_CHECK_COUNT, type AuditReport } from '@/lib/readiness-report';
 import {
   evaluateAndRecordDomainScanQuota,
   redactReportForFourthScanPaywall,
@@ -284,7 +284,9 @@ async function enrichWithInternetDbIfMissing(
     : 'No public IPv4 address was resolved: this check was not assessed.';
   let recommendation: string | undefined;
 
-  if (primaryIp) {
+  if (primaryIp && isCloudflareIpv4(primaryIp)) {
+    detail = `${primaryIp} is a shared Cloudflare edge address: InternetDB ports and CVEs for it describe Cloudflare's edge, not this domain's origin server, so origin exposure was not assessed.`;
+  } else if (primaryIp) {
     try {
       const idbRes = await fetch(`https://internetdb.shodan.io/${primaryIp}`, {
         headers: { 'User-Agent': 'StealthMarkAuditor/2.0' },
@@ -608,7 +610,8 @@ async function enrichWithV2ActiveShieldChecks(cleanDomain: string, data: Record<
         const st = String(item.status || 'info');
         counts[st] = (counts[st] || 0) + 1;
         secCounts[st] = (secCounts[st] || 0) + 1;
-        total += 1;
+        // The StealthMark detection row reports our own headers; it is not one of the SCAN_CHECK_COUNT checks.
+        if (item.id !== 'stealthmark_active') total += 1;
       }
       bySection[secKey] = secCounts;
     }
@@ -736,7 +739,7 @@ export async function GET(request: Request) {
     const scLive = computeExecutiveScorecard(data as unknown as AuditReport);
     const countsLive = ((data.summary as { counts?: Record<string, number> })?.counts) || {};
     const totalChecksLive = Number(
-      ((data.summary as { total_checks?: number })?.total_checks) || 60
+      ((data.summary as { total_checks?: number })?.total_checks) || SCAN_CHECK_COUNT
     );
     const uaClassNow = classifyUserAgent(userAgent);
     const shouldCountHumanScan =
