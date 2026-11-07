@@ -2,13 +2,16 @@ import { FastifyInstance } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { capabilities, type DbClient } from '@stealthmark/db'
 import { evaluateAndAwardBadges, getCapabilityBadges } from '../../services/badges.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 export async function badgesRoutes(app: FastifyInstance, options: { db: DbClient }) {
   const { db } = options
 
   // GET /v1/capabilities/:id/badges — Get awarded quality and verification badges
   app.get('/capabilities/:id/badges', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [cap] = await db
       .select({ id: capabilities.id, name: capabilities.name })
@@ -31,7 +34,9 @@ export async function badgesRoutes(app: FastifyInstance, options: { db: DbClient
 
   // POST /v1/capabilities/:id/badges/evaluate — Trigger badge evaluation
   app.post('/capabilities/:id/badges/evaluate', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [cap] = await db
       .select({ id: capabilities.id })

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { orgScope, resolveOrgAccess } from '../../lib/org-context.js'
+import { idParams, parseParams } from '../../lib/params.js'
 import { and, eq } from 'drizzle-orm'
 import { agents, type DbClient } from '@stealthmark/db'
 
@@ -74,7 +75,9 @@ export async function agentsRoutes(app: FastifyInstance, options: { db: DbClient
 
   // GET /v1/agents/:id
   app.get('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [agent] = await db
       .select()
@@ -94,7 +97,9 @@ export async function agentsRoutes(app: FastifyInstance, options: { db: DbClient
 
   // PATCH /v1/agents/:id
   app.patch('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const parseResult = updateAgentSchema.safeParse(request.body)
     if (!parseResult.success) {
       return reply.code(400).send({
@@ -124,7 +129,9 @@ export async function agentsRoutes(app: FastifyInstance, options: { db: DbClient
 
   // POST /v1/agents/:id/suspend
   app.post('/:id/suspend', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [suspended] = await db
       .update(agents)

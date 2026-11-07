@@ -13,6 +13,7 @@ import {
 import { logGatewayAccessEvent } from '../../../services/gateway-audit.js'
 import { recordAgentAccess } from '../../../services/behavioral-score.js'
 import { isAuthorizedForOrg, isPlatformCaller, resolveOrgAccess } from '../../../lib/org-context.js'
+import { idParams, parseParams } from '../../../lib/params.js'
 import { replyWithDomainError } from './errors.js'
 import type { GatewayDeps } from './shared.js'
 
@@ -59,7 +60,9 @@ export async function registerPassportRoutes(app: FastifyInstance, { db }: Gatew
 
   // GET /v1/gateway/passport/:id — Get passport details (BOLA protected)
   app.get('/passport/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const passport = await getPassportById(db, id)
     if (!passport) {
       return reply.code(404).send({ error: 'not_found', message: `Passport ${id} not found` })
@@ -72,7 +75,9 @@ export async function registerPassportRoutes(app: FastifyInstance, { db }: Gatew
 
   // POST /v1/gateway/passport/:id/revoke — Revoke a passport (BOLA protected)
   app.post('/passport/:id/revoke', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const passport = await getPassportById(db, id)
     if (!passport) {
       return reply.code(404).send({ error: 'not_found', message: `Passport ${id} not found` })

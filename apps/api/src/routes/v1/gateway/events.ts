@@ -14,6 +14,7 @@ import {
 import { getAgentOrgId, getPassportById } from '../../../services/passport.js'
 import { requireScopes } from '../../../middleware/api-key-auth.js'
 import { isAuthorizedForOrg } from '../../../lib/org-context.js'
+import { idParams, parseParams } from '../../../lib/params.js'
 import { loadOwnedSite, parseLimit, type GatewayDeps } from './shared.js'
 
 // The organization is always taken from the site; a client-supplied orgId is ignored.
@@ -29,7 +30,9 @@ const recordAccessSchema = z.object({
 export async function registerEventRoutes(app: FastifyInstance, { db }: GatewayDeps) {
   // POST /v1/gateway/sites/:id/access — Record an access event (e.g., from SDK reporter)
   app.post('/sites/:id/access', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -73,7 +76,9 @@ export async function registerEventRoutes(app: FastifyInstance, { db }: GatewayD
 
   // GET /v1/gateway/sites/:id/events — List access events for a site
   app.get('/sites/:id/events', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -84,7 +89,9 @@ export async function registerEventRoutes(app: FastifyInstance, { db }: GatewayD
 
   // GET /v1/gateway/sites/:id/events/verify — Verify SHA-256 hash chain
   app.get('/sites/:id/events/verify', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -93,7 +100,9 @@ export async function registerEventRoutes(app: FastifyInstance, { db }: GatewayD
 
   // GET /v1/gateway/sites/:id/analytics — Aggregated site gateway analytics
   app.get('/sites/:id/analytics', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const site = await loadOwnedSite(db, request, reply, id)
     if (!site) return reply
 
@@ -102,7 +111,9 @@ export async function registerEventRoutes(app: FastifyInstance, { db }: GatewayD
 
   // GET /v1/gateway/agents/:id/behavioral — Get agent behavioral profile (own organization only)
   app.get('/agents/:id/behavioral', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const agentOrgId = await getAgentOrgId(db, id)
     if (!agentOrgId || !isAuthorizedForOrg(request, agentOrgId)) {
       return reply.code(404).send({ error: 'not_found', message: 'Agent not found' })
@@ -113,7 +124,9 @@ export async function registerEventRoutes(app: FastifyInstance, { db }: GatewayD
 
   // POST /v1/gateway/agents/:id/behavioral/reset — Reset agent behavioral counters (requires admin scope and ownership of the agent)
   app.post('/agents/:id/behavioral/reset', { preHandler: [requireScopes('admin')] }, async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const agentOrgId = await getAgentOrgId(db, id)
     if (!agentOrgId || !isAuthorizedForOrg(request, agentOrgId)) {
       return reply.code(404).send({ error: 'not_found', message: 'Agent not found' })

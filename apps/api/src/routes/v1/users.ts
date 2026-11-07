@@ -2,13 +2,16 @@ import { FastifyInstance } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { users, type DbClient } from '@stealthmark/db'
 import { isAuthorizedForOrg, orgScope } from '../../lib/org-context.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 export async function usersRoutes(app: FastifyInstance, options: { db: DbClient }) {
   const { db } = options
 
   // GET /v1/users/:id
   app.get('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [user] = await db
       .select()
@@ -28,7 +31,9 @@ export async function usersRoutes(app: FastifyInstance, options: { db: DbClient 
 
   // DELETE /v1/users/:id
   app.delete('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [user] = await db
       .select({ id: users.id, orgId: users.orgId })

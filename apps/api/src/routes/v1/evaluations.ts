@@ -3,13 +3,16 @@ import { eq, desc } from 'drizzle-orm'
 import { capabilities, evaluations, type DbClient } from '@stealthmark/db'
 import { calculateQualityScore } from '../../services/evaluation.js'
 import { evaluateAndAwardBadges } from '../../services/badges.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 export async function evaluationsRoutes(app: FastifyInstance, options: { db: DbClient }) {
   const { db } = options
 
   // GET /v1/capabilities/:id/evaluation — Get latest evaluation for a capability
   app.get('/capabilities/:id/evaluation', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [cap] = await db
       .select({ id: capabilities.id, name: capabilities.name, slug: capabilities.slug })
@@ -62,7 +65,9 @@ export async function evaluationsRoutes(app: FastifyInstance, options: { db: DbC
 
   // POST /v1/capabilities/:id/evaluate — Trigger re-evaluation of capability quality
   app.post('/capabilities/:id/evaluate', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [cap] = await db
       .select({ id: capabilities.id })

@@ -17,8 +17,8 @@ describe('Security Audit — Phase B (P1) Remediation Tests', () => {
   const attackerOrgId = '22222222-2222-2222-2222-222222222222'
   const adminOrgId = '33333333-3333-3333-3333-333333333333'
 
-  const siteId = 'site-victim-001'
-  const passportId = 'pass-victim-001'
+  const siteId = '00000000-0000-4000-8000-00000000a001'
+  const passportId = '00000000-0000-4000-8000-00000000b001'
   const agentId = 'agent-victim-001'
 
   const attackerKeyStr = 'sk_live_attacker_key_123456789012'

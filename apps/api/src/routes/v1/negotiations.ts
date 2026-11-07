@@ -10,6 +10,7 @@ import {
   getNegotiation,
   listNegotiations,
 } from '../../services/negotiation.js'
+import { idParams, parseParams } from '../../lib/params.js'
 
 const offerSchema = z.object({
   price: z.number().positive('Price must be positive'),
@@ -76,7 +77,9 @@ export async function negotiationsRoutes(app: FastifyInstance, options: { db: Db
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const parseResult = counterNegotiationSchema.safeParse(request.body)
     if (!parseResult.success) {
       return reply.code(400).send({ error: 'validation_error', details: parseResult.error.flatten() })
@@ -107,7 +110,9 @@ export async function negotiationsRoutes(app: FastifyInstance, options: { db: Db
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const parseResult = decisionSchema.safeParse(request.body || {})
     const note = parseResult.success ? parseResult.data.note : undefined
 
@@ -136,7 +141,9 @@ export async function negotiationsRoutes(app: FastifyInstance, options: { db: Db
       return reply.code(401).send({ error: 'unauthorized', message: 'Organization context required' })
     }
 
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const parseResult = decisionSchema.safeParse(request.body || {})
     const note = parseResult.success ? parseResult.data.note : undefined
 
@@ -159,7 +166,9 @@ export async function negotiationsRoutes(app: FastifyInstance, options: { db: Db
 
   // GET /v1/commerce/negotiate/:id — View single negotiation
   app.get('/commerce/negotiate/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const neg = await getNegotiation(db, id)
     if (!neg) {
       return reply.code(404).send({ error: 'not_found', message: 'Negotiation not found' })

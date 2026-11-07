@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { orgScope, resolveOrgAccess } from '../../lib/org-context.js'
+import { idParams, parseParams } from '../../lib/params.js'
 import { eq, and, sql } from 'drizzle-orm'
 import { capabilities, type DbClient } from '@stealthmark/db'
 import { generateEmbedding } from '../../services/embeddings.js'
@@ -148,7 +149,9 @@ export async function capabilitiesRoutes(app: FastifyInstance, options: { db: Db
 
   // GET /v1/capabilities/:id
   app.get('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
 
     const [item] = await db
       .select()
@@ -168,7 +171,9 @@ export async function capabilitiesRoutes(app: FastifyInstance, options: { db: Db
 
   // PATCH /v1/capabilities/:id
   app.patch('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     const parseResult = updateCapabilitySchema.safeParse(request.body)
     if (!parseResult.success) {
       return reply.code(400).send({
@@ -216,7 +221,9 @@ export async function capabilitiesRoutes(app: FastifyInstance, options: { db: Db
 
   // GET /v1/capabilities/:id/trust
   app.get('/:id/trust', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     try {
       const trust = await calculateTrustScore(db, id)
       return reply.send(trust)
@@ -231,7 +238,9 @@ export async function capabilitiesRoutes(app: FastifyInstance, options: { db: Db
 
   // POST /v1/capabilities/:id/verify
   app.post('/:id/verify', async (request, reply) => {
-    const { id } = request.params as { id: string }
+    const params = parseParams(idParams, request, reply)
+    if (!params) return reply
+    const { id } = params
     try {
       const trust = await calculateTrustScore(db, id)
       return reply.send({
