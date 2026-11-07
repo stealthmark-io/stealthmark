@@ -1,0 +1,54 @@
+name: 🐛 Bug Report
+description: Create a report to help us improve StealthMark
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue! Please provide as much detail as possible.
+  - type: dropdown
+    id: package
+    attributes:
+      label: Affected Package
+      options:
+        - "@stealthmark/core"
+        - "@stealthmark/next"
+        - "@stealthmark/mcp-server"
+        - "apps/web (Landing / Console)"
+        - "infrastructure / Cloud Run Gateway"
+        - "Other"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: StealthMark Version / Next.js Version
+      placeholder: "@stealthmark/next 0.1.0 / Next.js 15.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear and concise description of what the bug is.
+      placeholder: When an agent with User-Agent "X" sends Accept "application/agent+json", the middleware...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps or minimal reproducible code sample to reproduce the behavior.
+      placeholder: |
+        1. Install `@stealthmark/next`
+        2. Configure middleware with ...
+        3. Send curl request ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: false

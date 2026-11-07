@@ -1,0 +1,30 @@
+.gcloudignore
+.git
+.gitignore
+.gitattributes
+
+node_modules/
+**/node_modules/
+
+dist/
+**/.next/
+.turbo/
+*.tsbuildinfo
+
+.vscode/
+.idea/
+.DS_Store
+
+coverage/
+infrastructure/pgdata/
+graphify-out/
+
+# Local secrets and agent state never leave the machine.
+.env*
+.vercel/
+.claude/
+
+# Loose files that are not build inputs.
+*.pdf
+/*.html
+*.log

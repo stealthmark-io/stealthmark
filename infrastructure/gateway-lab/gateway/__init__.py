@@ -1,0 +1,1 @@
+"""StealthMark Agent Gateway package."""

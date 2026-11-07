@@ -1,0 +1,67 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish Packages
+    if: github.repository == 'stealthmark-io/stealthmark-sdk'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build core (next, express and cli import its dist)
+        run: npm run build --workspace=@stealthmark/core
+
+      - name: Typecheck
+        run: |
+          npm run typecheck --workspace=@stealthmark/core
+          npm run typecheck --workspace=@stealthmark/next
+          npm run typecheck --workspace=@stealthmark/express
+          npm run typecheck --workspace=@stealthmark/cli
+
+      - name: Run Tests
+        run: |
+          npm test --workspace=@stealthmark/core
+          npm test --workspace=@stealthmark/next
+          npm test --workspace=@stealthmark/express
+          npm test --workspace=@stealthmark/cli
+
+      - name: Build remaining packages
+        run: |
+          npm run build --workspace=@stealthmark/next
+          npm run build --workspace=@stealthmark/express
+          npm run build --workspace=@stealthmark/cli
+
+      - name: Publish packages in dependency order
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: ${{ github.event.repository.private == false }}
+        run: |
+          set -euo pipefail
+          for pkg in core next express cli; do
+            name="@stealthmark/${pkg}"
+            version="$(node -p "require('./packages/${pkg}/package.json').version")"
+            if npm view "${name}@${version}" version >/dev/null 2>&1; then
+              echo "${name}@${version} is already published, skipping"
+              continue
+            fi
+            npm publish --workspace="${name}" --access public
+          done

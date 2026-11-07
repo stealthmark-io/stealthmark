@@ -1,0 +1,24 @@
+__pycache__
+*.pyc
+.git
+.DS_Store
+tests
+.pytest_cache
+requirements-dev.txt
+
+# Secrets and local agent state never enter the image, at any depth.
+.env
+.env*
+**/.env
+**/.env*
+.claude
+.claude/
+**/.claude
+**/.claude/
+.venv
+.venv/
+*.pem
+*.key
+
+# Operator scripts that are not build inputs.
+*.sh

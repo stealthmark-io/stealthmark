@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  ::selection {
+    background-color: rgba(0, 210, 254, 0.3);
+    color: #ffffff;
+  }
+  body {
+    background-color: #060709;
+    color: #f1f5f9;
+    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: hidden;
+  }
+}
+
+/* StealthMark Design Tokens */
+:root {
+  --bg-canvas: #060709;
+  --bg-surface: #0d1017;
+  --bg-card: rgba(13, 16, 23, 0.80);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --brand-human: #6366f1;
+  --brand-agent: #00d2fe;
+  --brand-shield: #10b981;
+  --brand-indigo: #6366f1;
+}
+
+/* Background grid pattern */
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+/* Fluid Animated Text Gradient (Motion Graphics on Hero Headline) */
+.shimmer-gradient {
+  background: linear-gradient(90deg, #6366f1 0%, #00d2fe 35%, #10b981 65%, #6366f1 100%);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 8s linear infinite;
+}
+
+@keyframes textShimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+/* Reactive Bento Cards with Specular Top Light & Radial Cursor Spotlight */
+.bento-card {
+  position: relative;
+  overflow: hidden;
+  background: rgba(11, 14, 20, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.bento-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    560px circle at var(--mouse-x, 50%) var(--mouse-y, 0%),
+    rgba(0, 210, 254, 0.075),
+    transparent 42%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.bento-card:hover {
+  border-color: rgba(0, 210, 254, 0.28);
+  transform: translateY(-2px);
+}
+
+.bento-card:hover::before {
+  opacity: 1;
+}
+
+/* Infinite Marquee Animations */
+@keyframes marqueeLeft {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marqueeRight {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-marquee-left {
+  display: flex;
+  width: max-content;
+  animation: marqueeLeft 32s linear infinite;
+}
+
+.animate-marquee-right {
+  display: flex;
+  width: max-content;
+  animation: marqueeRight 35s linear infinite;
+}
+
+.animate-marquee-left:hover,
+.animate-marquee-right:hover {
+  animation-play-state: paused;
+}
+
+/* Ambient Radial Glows */
+.ambient-glow-purple {
+  background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.16), transparent 70%);
+}
+
+.ambient-glow-cyan {
+  background: radial-gradient(circle at 50% 0%, rgba(0, 210, 254, 0.15), transparent 70%);
+}
+
+/* Custom Scrollbars */
+.os-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.os-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.os-scroll::-webkit-scrollbar-thumb {
+  background: #141a24;
+  border-radius: 4px;
+}
+.os-scroll::-webkit-scrollbar-thumb:hover {
+  background: #222b3b;
+}
+
+/* Status Pulse Dot */
+@keyframes status-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.85); opacity: 0.5; }
+}
+
+.animate-status-pulse {
+  animation: status-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

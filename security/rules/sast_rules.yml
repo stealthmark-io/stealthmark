@@ -1,0 +1,105 @@
+rules:
+  - id: python-unparameterized-sql
+    languages: [python]
+    severity: ERROR
+    message: "Detected potential SQL injection: unparameterized query using string formatting or concatenation in database execution."
+    patterns:
+      - pattern-either:
+          - pattern: $CURSOR.execute(f"...", ...)
+          - pattern: $CURSOR.execute("..." % (...), ...)
+          - pattern: $CURSOR.execute("..." + $X, ...)
+          - pattern: $CURSOR.execute($X.format(...), ...)
+    metadata:
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      owasp: "A03:2021 - Injection"
+      category: security
+      technology:
+        - python
+        - sql
+
+  - id: hardcoded-secret-token
+    languages: [python, javascript, typescript]
+    severity: ERROR
+    message: "Potential hardcoded secret or credential token detected in source code."
+    pattern-regex: '(sk_live_[0-9a-zA-Z]{24,}|ghp_[0-9a-zA-Z]{36}|glpat-[0-9a-zA-Z\-]{20,}|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----)'
+    metadata:
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      category: security
+
+  - id: insecure-cors-credentials-wildcard
+    languages: [python, javascript, typescript]
+    severity: ERROR
+    message: "Insecure CORS configuration: allow_origins with wildcard '*' combined with allow_credentials=True allows credential theft via CSRF/XSS."
+    patterns:
+      - pattern-either:
+          - pattern: |
+              CORSMiddleware(
+                  ...,
+                  allow_origins=["*"],
+                  allow_credentials=True,
+                  ...
+              )
+          - pattern: |
+              app.add_middleware(
+                  CORSMiddleware,
+                  allow_origins=["*"],
+                  allow_credentials=True,
+                  ...
+              )
+    metadata:
+      cwe: "CWE-942: Permissive Cross-domain Policy with Untrusted Domains"
+      owasp: "A01:2021 - Broken Access Control"
+      category: security
+
+  - id: silent-exception-swallowing
+    languages: [python]
+    severity: WARNING
+    message: "Silent exception handling detected ('except Exception: pass'). This conceals runtime crashes, security violations, and diagnostic information."
+    patterns:
+      - pattern: |
+          except $EXCEPTION:
+              pass
+      - metavariable-regex:
+          metavariable: $EXCEPTION
+          regex: '^(Exception|BaseException)$'
+    metadata:
+      cwe: "CWE-391: Unchecked Error Condition"
+      category: best-practice
+
+  - id: mass-assignment-unfiltered-body
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Potential Mass Assignment (CWE-915 / OWASP API3:2023): passing raw req.body directly to ORM create/update or Object.assign allows attackers to inject privileged fields (e.g., role, is_admin)."
+    patterns:
+      - pattern-either:
+          - pattern: Object.assign($TARGET, req.body)
+          - pattern: $MODEL.create(req.body, ...)
+          - pattern: $MODEL.update(req.body, ...)
+          - pattern: $MODEL.findByIdAndUpdate($ID, req.body, ...)
+    metadata:
+      cwe: "CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes"
+      owasp: "API3:2023 - Broken Object Property Level Authorization"
+      category: security
+
+  - id: ai-agent-project-config-consent-override
+    languages: [json]
+    severity: ERROR
+    message: "Untrusted AI Agent Project Config Consent Override (CWE-863): repository-scoped .prime/settings.json forces agentTraces.enabled=true, overriding user global opt-out and exfiltrating up to 20MB of session transcripts."
+    patterns:
+      - pattern: |
+          {
+            ...,
+            "agentTraces": {
+              ...,
+              "enabled": true,
+              ...
+            },
+            ...
+          }
+    metadata:
+      cwe: "CWE-863: Incorrect Authorization"
+      owasp: "A01:2025 - Broken Access Control"
+      category: security
+
+

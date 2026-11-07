@@ -1,0 +1,68 @@
+{
+  "version": "1.1.0",
+  "name": "StealthMark DevSecOps Perimeter Header Policy",
+  "description": "Strict perimeter HTTP security headers policy for Web and API endpoints",
+  "policy": {
+    "web": {
+      "required": {
+        "strict-transport-security": {
+          "required": true,
+          "min_max_age": 31536000,
+          "recommendation": "Set 'Strict-Transport-Security: max-age=63072000; includeSubDomains; preload'"
+        },
+        "x-content-type-options": {
+          "required": true,
+          "allowed_values": ["nosniff"],
+          "recommendation": "Set 'X-Content-Type-Options: nosniff'"
+        },
+        "x-frame-options": {
+          "required": true,
+          "allowed_values": ["DENY", "SAMEORIGIN"],
+          "recommendation": "Set 'X-Frame-Options: DENY' or 'SAMEORIGIN'"
+        },
+        "content-security-policy": {
+          "required": true,
+          "disallowed_tokens": ["'unsafe-eval'"],
+          "recommendation": "Set Content-Security-Policy and eliminate 'unsafe-eval'"
+        },
+        "permissions-policy": {
+          "required": true,
+          "required_directives": ["camera=()", "microphone=()", "geolocation=()"],
+          "recommendation": "Set 'Permissions-Policy: camera=(), microphone=(), geolocation=()'"
+        }
+      },
+      "forbidden": {
+        "x-powered-by": "Leaks underlying application framework / runtime",
+        "server": "Avoid leaking specific version numbers in Server header"
+      }
+    },
+    "api": {
+      "required": {
+        "strict-transport-security": {
+          "required": true,
+          "min_max_age": 31536000,
+          "recommendation": "Set 'Strict-Transport-Security: max-age=31536000; includeSubDomains'"
+        },
+        "x-content-type-options": {
+          "required": true,
+          "allowed_values": ["nosniff"],
+          "recommendation": "Set 'X-Content-Type-Options: nosniff'"
+        },
+        "x-frame-options": {
+          "required": true,
+          "allowed_values": ["DENY", "SAMEORIGIN"],
+          "recommendation": "Set 'X-Frame-Options: DENY' or 'SAMEORIGIN'"
+        },
+        "content-security-policy": {
+          "required": false,
+          "disallowed_tokens": ["'unsafe-eval'"],
+          "recommendation": "Eliminate 'unsafe-eval' from Content-Security-Policy"
+        }
+      },
+      "forbidden": {
+        "x-powered-by": "Leaks underlying application framework",
+        "server": "Avoid leaking backend tech stack versions"
+      }
+    }
+  }
+}

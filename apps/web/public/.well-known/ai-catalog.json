@@ -1,0 +1,22 @@
+{
+  "version": "2.0",
+  "organization": {
+    "name": "StealthMark",
+    "url": "https://stealthmark.io",
+    "description": "Agent governance for registered sites: observe, identify and set policy for AI agent traffic."
+  },
+  "resources": [
+    {
+      "type": "documentation",
+      "name": "StealthMark Docs",
+      "url": "https://stealthmark.io/docs",
+      "description": "Middleware installation for Next.js, Express and Fastify, and the agent policy reference."
+    },
+    {
+      "type": "api",
+      "name": "StealthMark API",
+      "url": "https://api.stealthmark.io/v1/openapi.json",
+      "description": "REST API for observing and governing AI agent traffic on registered sites."
+    }
+  ]
+}

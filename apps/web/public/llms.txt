@@ -1,0 +1,18 @@
+# StealthMark
+
+> StealthMark (founded in 2026) is open-source middleware (Apache-2.0) for Next.js, Express and Fastify that shows which AI agents read your site, and lets you observe them, serve them an agent manifest, or block them. It acts on agents that identify themselves. A hosted console shows per-agent activity, usage and credits.
+
+## Docs
+
+- [Documentation](https://stealthmark.io/docs): install, agent policies, detection and credits
+- [Trust and security](https://stealthmark.io/trust): what the SDK does, which data reaches the console, what is not offered yet
+- [Pricing](https://stealthmark.io/pricing): Free plan with 250 agent events a month and prepaid credit packs
+
+## Machine-readable
+
+- [Agent manifest](https://stealthmark.io/.well-known/agent.json): capabilities this site publishes for agents
+- [AI catalog](https://stealthmark.io/.well-known/ai-catalog.json)
+
+## Source
+
+- [SDK on npm](https://www.npmjs.com/org/stealthmark): `@stealthmark/core`, `@stealthmark/next`, `@stealthmark/express` and `@stealthmark/cli`, Apache-2.0

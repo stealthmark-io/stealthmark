@@ -1,0 +1,26 @@
+{
+  "mcpVersion": "2025-03-26",
+  "name": "stealthmark-a2a-mcp",
+  "version": "2.1.0",
+  "description": "Idempotent x402, Base/Polygon/BSC/Tron On-Chain & Polar A2A Security Gateway: 60-point OWASP Top 10:2025 domain audit, Pre-Pay Trust & Claim-Verification Receipt Microservice (/api/v2/trust-receipt), wallet prompt-injection firewall, /llms.txt + agent.json synthesis, and Cloudflare Edge Worker v2 generator (30% referral commission, recorded but not paid out automatically).",
+  "transport": {
+    "type": "streamable-http",
+    "endpoint": "https://stealthmark.io/api/mcp"
+  },
+  "authentication": {
+    "supported": ["x402-base-usdc", "x402-polygon-usdc", "onchain-bsc-tron-usdt", "bearer-mpp-token"],
+    "skillManifest": "https://stealthmark.io/skill.md",
+    "claimEndpoint": "https://stealthmark.io/api/billing/crypto/claim",
+    "unlockScanEndpoint": "https://stealthmark.io/api/billing/crypto/unlock-scan",
+    "trustReceiptEndpoint": "https://stealthmark.io/api/v2/trust-receipt"
+  },
+  "tools": [
+    "stealthmark_audit_domain",
+    "stealthmark_issue_trust_receipt",
+    "stealthmark_shield_scan",
+    "stealthmark_generate_manifests",
+    "stealthmark_generate_edge_shield",
+    "stealthmark_claim_crypto_pass",
+    "stealthmark_affiliate_stats"
+  ]
+}

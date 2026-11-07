@@ -1,0 +1,235 @@
+{
+  "schema": 1,
+  "editions": [
+    {
+      "edition": "2026-10",
+      "generated_at": "2026-10-29T00:10:41.577Z",
+      "auditor": "StealthMarkAuditor/2.0 (+https://stealthmark.io/docs)",
+      "source": {
+        "name": "80 B2B SaaS, developer-tool and AI domains hand-picked by StealthMark from the Tranco list",
+        "url": "https://tranco-list.eu/",
+        "list_sha256": "ab8649d03996c47856f981d7e84898f970c9688df3153b33408fd102f9e28b79"
+      },
+      "domains_requested": 80,
+      "domains_scanned": 80,
+      "checks": [
+        {
+          "id": "https_available",
+          "section": "transport",
+          "label": "HTTPS available",
+          "pass": 79,
+          "warn": 0,
+          "fail": 1,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "http_redirect",
+          "section": "transport",
+          "label": "HTTP redirects to HTTPS",
+          "pass": 79,
+          "warn": 0,
+          "fail": 0,
+          "info": 1,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "hsts_configured",
+          "section": "transport",
+          "label": "HSTS header",
+          "pass": 64,
+          "warn": 15,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 1
+        },
+        {
+          "id": "tls_certificate_trust",
+          "section": "transport",
+          "label": "Trusted TLS certificate chain",
+          "pass": 79,
+          "warn": 0,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 1,
+          "missing": 0
+        },
+        {
+          "id": "caa_record",
+          "section": "dns",
+          "label": "CAA record",
+          "pass": 34,
+          "warn": 0,
+          "fail": 0,
+          "info": 46,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "spf_record",
+          "section": "dns",
+          "label": "SPF record",
+          "pass": 78,
+          "warn": 2,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "dmarc_record",
+          "section": "dns",
+          "label": "DMARC policy",
+          "pass": 67,
+          "warn": 13,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "content_security_policy",
+          "section": "headers",
+          "label": "Content-Security-Policy",
+          "pass": 5,
+          "warn": 74,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 1
+        },
+        {
+          "id": "content_type_options",
+          "section": "headers",
+          "label": "X-Content-Type-Options",
+          "pass": 42,
+          "warn": 37,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 1
+        },
+        {
+          "id": "referrer_policy",
+          "section": "headers",
+          "label": "Referrer-Policy",
+          "pass": 33,
+          "warn": 0,
+          "fail": 0,
+          "info": 46,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 1
+        },
+        {
+          "id": "framing_protection",
+          "section": "headers",
+          "label": "Clickjacking protection",
+          "pass": 53,
+          "warn": 26,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 1
+        },
+        {
+          "id": "robots_txt",
+          "section": "crawl_policy",
+          "label": "robots.txt",
+          "pass": 72,
+          "warn": 8,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "ai_agent_rules",
+          "section": "crawl_policy",
+          "label": "AI crawler rules in robots.txt",
+          "pass": 13,
+          "warn": 0,
+          "fail": 0,
+          "info": 67,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "sitemap_declared",
+          "section": "crawl_policy",
+          "label": "Sitemap declared in robots.txt",
+          "pass": 66,
+          "warn": 0,
+          "fail": 0,
+          "info": 14,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "llms_txt",
+          "section": "ai_surface",
+          "label": "/llms.txt",
+          "pass": 61,
+          "warn": 0,
+          "fail": 0,
+          "info": 19,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "agent_json",
+          "section": "ai_surface",
+          "label": "/.well-known/agent.json",
+          "pass": 0,
+          "warn": 80,
+          "fail": 0,
+          "info": 0,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "structured_data",
+          "section": "ai_surface",
+          "label": "Schema.org JSON-LD",
+          "pass": 53,
+          "warn": 0,
+          "fail": 0,
+          "info": 27,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 0
+        },
+        {
+          "id": "ai_citation_metadata",
+          "section": "ai_surface",
+          "label": "AI citation metadata",
+          "pass": 69,
+          "warn": 0,
+          "fail": 0,
+          "info": 5,
+          "error": 0,
+          "not_assessed": 0,
+          "missing": 6
+        }
+      ]
+    }
+  ]
+}

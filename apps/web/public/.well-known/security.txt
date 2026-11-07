@@ -1,0 +1,8 @@
+Contact: mailto:security@stealthmark.io
+Contact: mailto:support@stealthmark.io
+Contact: https://stealthmark.io/trust
+Expires: 2027-10-31T00:00:00.000Z
+Preferred-Languages: en, es, pt
+Canonical: https://stealthmark.io/.well-known/security.txt
+Policy: https://stealthmark.io/trust
+# StealthMark: free 60-point passive audit at https://stealthmark.io/scan
