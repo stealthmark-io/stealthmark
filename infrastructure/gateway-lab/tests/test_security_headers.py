@@ -82,7 +82,7 @@ def test_tenant_content_without_a_csp_does_not_get_one_from_the_gateway(client, 
 def test_the_root_page_relayed_from_the_configured_upstream_is_left_alone(client, monkeypatch):
     relayed = httpx.Response(200, content=b"<html>home</html>", headers=TENANT_HEADERS)
     monkeypatch.setattr(state.http_client, "get", AsyncMock(return_value=relayed))
-    res = client.get("/")
+    res = client.get("/", headers={"x-stealthmark-service": "democv"})
     assert res.status_code == 200
     assert res.headers["x-frame-options"] == "SAMEORIGIN"
     assert "strict-transport-security" not in res.headers

@@ -14,13 +14,115 @@ from gateway.state import TELEMETRY, http_client
 router = APIRouter()
 
 
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {
         "status": "ok",
         "service": "stealthmark-enterprise-gateway",
         "version": "1.6.0",
     }
+
+
+@router.api_route("/favicon.ico", methods=["GET", "HEAD"])
+def favicon(request: Request):
+    mark_tenant_response(request)
+    svg_icon = (
+        b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+        b'<rect width="64" height="64" rx="14" fill="#0b1020"/>'
+        b'<text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" '
+        b'fill="#38bdf8" font-family="monospace" font-weight="bold" font-size="26">SM</text></svg>'
+    )
+    return Response(
+        content=svg_icon,
+        status_code=200,
+        media_type="image/svg+xml",
+        headers={
+            "Cross-Origin-Resource-Policy": "cross-origin",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=86400",
+        },
+    )
+
+
+@router.api_route("/llms.txt", methods=["GET", "HEAD"])
+@router.api_route("/openapi.json", methods=["GET", "HEAD"])
+@router.api_route("/.well-known/x402-bazaar.json", methods=["GET", "HEAD"])
+@router.api_route("/.well-known/x402", methods=["GET", "HEAD"])
+@router.api_route("/.well-known/x402.json", methods=["GET", "HEAD"])
+@router.api_route("/.well-known/mcp.json", methods=["GET", "HEAD"])
+@router.api_route("/mcp.json", methods=["GET", "HEAD"])
+@router.api_route("/x402/health", methods=["GET", "HEAD"])
+@router.api_route("/x402/referral-program", methods=["GET", "HEAD"])
+async def proxy_x402_discovery(request: Request):
+    target_path = "/health" if request.url.path == "/x402/health" else request.url.path
+    resp = await http_client.get(
+        f"http://127.0.0.1:8402{target_path}",
+        headers={
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "gateway.stealthmark.io",
+        },
+    )
+    mtype = "text/plain; charset=utf-8" if request.url.path.endswith(".txt") else "application/json; charset=utf-8"
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=mtype,
+        headers={"Access-Control-Allow-Origin": "*", "X-Robots-Tag": "index, follow"},
+    )
+
+
+@router.api_route("/x402/{endpoint_slug:path}", methods=["GET", "POST", "OPTIONS", "HEAD"])
+async def proxy_x402_paid_endpoints(endpoint_slug: str, request: Request):
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=204,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS, HEAD",
+                "Access-Control-Allow-Headers": "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, X-Referral-Agent",
+                "Access-Control-Expose-Headers": "PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE, X-Referral-Rebate-Atomic",
+            },
+        )
+    fwd_headers = {
+        "X-Forwarded-Proto": "https",
+        "X-Forwarded-Host": "gateway.stealthmark.io",
+        "Content-Type": "application/json",
+    }
+    for h in ("X-PAYMENT", "PAYMENT-SIGNATURE", "X-Referral-Agent"):
+        val = request.headers.get(h)
+        if val and len(val) <= 8192:
+            fwd_headers[h] = val
+    qs_suffix = f"?{request.url.query}" if request.url.query and len(request.url.query) <= 4096 else ""
+    if request.method in ("GET", "HEAD"):
+        resp = await http_client.get(
+            f"http://127.0.0.1:8402{request.url.path}{qs_suffix}",
+            headers=fwd_headers,
+        )
+    else:
+        raw_body = await request.body()
+        if len(raw_body) > 65536:
+            return JSONResponse(status_code=413, content={"error": "Payload Too Large"})
+        resp = await http_client.post(
+            f"http://127.0.0.1:8402{request.url.path}",
+            content=raw_body if raw_body else b"{}",
+            headers=fwd_headers,
+        )
+    out_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, X-Referral-Agent",
+        "Access-Control-Expose-Headers": "PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE, X-Referral-Rebate-Atomic",
+        "X-Robots-Tag": "index, follow",
+    }
+    for hdr in ("payment-required", "payment-response", "x-payment-response", "x-referral-rebate-atomic", "cache-control"):
+        if hdr in resp.headers:
+            out_headers["Cache-Control" if hdr == "cache-control" else ("X-Referral-Rebate-Atomic" if hdr == "x-referral-rebate-atomic" else hdr.upper())] = resp.headers[hdr]
+    mtype = resp.headers.get("content-type", "application/json; charset=utf-8")
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=mtype,
+        headers=out_headers,
+    )
 
 # -------------------------------------------------------------
 # AGENT MANIFEST (.well-known/agent.json)
@@ -75,7 +177,32 @@ async def get_sovereign_agent_manifest(request: Request):
         }
     )
 
-@router.get("/")
+ROOT_LANDING_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StealthMark Sovereign Gateway &amp; x402 Formal Prover</title>
+  <meta name="description" content="Autonomous Z3 Formal Invariant Prover (ERC-4626 Vaults, Polymarket Baskets, ZK Circuits, Differential Consensus) &amp; 100-Point Perimeter Security Gateway on Base Mainnet (x402 v2)." />
+  <meta property="og:title" content="StealthMark Sovereign Gateway &amp; x402 Formal Prover" />
+  <meta property="og:description" content="Autonomous Z3 Formal Invariant Prover &amp; 100-Point Perimeter Security Gateway on Base Mainnet (x402 v2)." />
+  <link rel="icon" href="/favicon.ico" type="image/svg+xml" />
+</head>
+<body style="background:#070a12;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;max-width:820px;margin:48px auto;padding:24px;line-height:1.6;">
+  <h1>StealthMark Sovereign Gateway &amp; x402 Formal Prover</h1>
+  <p>Autonomous Z3 SMT formal verification pay-per-proof server on Base Mainnet (USDC <code>x402 v2</code>) &amp; 100-Point Perimeter Security Scanner.</p>
+  <pre style="background:#0f172a;padding:16px;border-radius:8px;color:#38bdf8;">npx agentcash try https://gateway.stealthmark.io</pre>
+  <ul>
+    <li><a href="/openapi.json" style="color:#38bdf8;">OpenAPI 3.1 Specification (/openapi.json)</a></li>
+    <li><a href="/.well-known/x402-bazaar.json" style="color:#38bdf8;">Coinbase x402 Bazaar Discovery (/.well-known/x402-bazaar.json)</a></li>
+    <li><a href="/llms.txt" style="color:#38bdf8;">Agentic SEO Manifest (/llms.txt)</a></li>
+    <li><a href="https://github.com/stealthmark-io/stealthmark-scanner" style="color:#38bdf8;">Open-Source 100-Point Scanner CLI (GitHub MIT)</a></li>
+  </ul>
+</body>
+</html>"""
+
+
+@router.api_route("/", methods=["GET", "HEAD"])
 async def root_router(
     request: Request,
     x_stealthmark_agent: str | None = Header(None),
@@ -85,9 +212,7 @@ async def root_router(
     if request.headers.get("x-stealthmark-target") or "target" in request.query_params:
         return await universal_reverse_proxy(request, "")
 
-    is_agent = bool(x_stealthmark_agent or (accept and "application/agent+json" in accept))
-
-    if not is_agent:
+    if x_stealthmark_service in ("demodental", "democv"):
         target_upstream = DEMODENTAL_UPSTREAM if x_stealthmark_service == "demodental" else f"{DEMOCV_UPSTREAM}/es"
         try:
             start_t = time.perf_counter()
@@ -111,12 +236,18 @@ async def root_router(
             )
 
     TELEMETRY["requests_total"] += 1
-    return JSONResponse(
-        status_code=200,
-        content={
-            "stealthmark": "v1.6",
-            "manifest": "/.well-known/agent.json",
-            "scanner": "/api/v1/scanner/audit-url",
-            "max_body_mb": MAX_BODY_BYTES // (1024 * 1024),
-        }
-    )
+    is_agent = bool(x_stealthmark_agent or (accept and "application/agent+json" in accept))
+    if is_agent:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "stealthmark": "v1.6",
+                "name": "StealthMark Sovereign Gateway & x402 Formal Invariant Prover",
+                "manifest": "/.well-known/agent.json",
+                "openapi": "/openapi.json",
+                "bazaar": "/.well-known/x402-bazaar.json",
+                "scanner": "/api/v1/scanner/audit-url",
+                "max_body_mb": MAX_BODY_BYTES // (1024 * 1024),
+            },
+        )
+    return Response(content=ROOT_LANDING_HTML, status_code=200, media_type="text/html; charset=utf-8")

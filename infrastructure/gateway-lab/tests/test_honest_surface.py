@@ -48,10 +48,18 @@ def test_lab_routes_default_to_off():
     assert config.LAB_ROUTES_ENABLED is False
 
 
-@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+@pytest.mark.parametrize("path", ["/docs", "/redoc"])
 def test_api_documentation_is_not_public_by_default(client, path):
     assert client.get(path).status_code == 404
     assert TestClient(create_app(public_docs=True)).get(path).status_code == 200
+
+
+def test_openapi_path_serves_the_x402_prover_document_unless_gateway_docs_are_public(client, monkeypatch):
+    sent = fake_web(monkeypatch, lambda request: httpx.Response(200, json={"info": {"title": "x402 prover"}}))
+    assert client.get("/openapi.json").json()["info"]["title"] == "x402 prover"
+    assert [str(request.url) for request in sent] == ["http://127.0.0.1:8402/openapi.json"]
+    public = TestClient(create_app(public_docs=True)).get("/openapi.json")
+    assert public.json()["info"]["title"] == "StealthMark Gateway & Security Scanner"
 
 
 def test_agent_manifest_makes_no_unbacked_claims(client):

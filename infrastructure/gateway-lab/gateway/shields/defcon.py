@@ -15,6 +15,13 @@ async def defcon_perimeter_enforcer(request: Request, call_next):
     path = request.url.path
     exempt_paths = [
         "/health",
+        "/openapi.json",
+        "/.well-known/x402",
+        "/.well-known/mcp.json",
+        "/mcp.json",
+        "/.well-known/agent-card.json",
+        "/llms.txt",
+        "/x402/",
         "/api/v1/ping",
         "/api/v1/defcon",
         "/api/v1/domains",
