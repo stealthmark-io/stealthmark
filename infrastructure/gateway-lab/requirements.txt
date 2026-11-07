@@ -3,7 +3,7 @@ uvicorn[standard]==0.32.1
 httpx==0.28.1
 pydantic==2.12.5
 starlette==1.7.0
-anyio==4.15.1
+anyio==4.16.0
 idna==3.20
 annotated-doc==0.0.5
 annotated-types==0.8.0
