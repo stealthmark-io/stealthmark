@@ -13,6 +13,9 @@ const NO_STORE_HEADERS = {
 const PORTFOLIO_SITES = [
   { name: 'StealthMark Web & /scan', url: 'https://stealthmark.io' },
   { name: 'StealthMark Core API', url: 'https://api.stealthmark.io/health' },
+  { name: 'ATSify AI', url: 'https://atsify-ai.com' },
+  { name: 'OceanEye SAR DeepTech', url: 'https://oceaneye-ai.com' },
+  { name: 'Elite Web Solutions', url: 'https://elite-web-solutions.com' },
 ];
 
 async function isCallerFounder(req: NextRequest): Promise<boolean> {

@@ -108,7 +108,7 @@ describe('landing copy tells the single-player story', () => {
     expect(text).toContain('The control layer between your website and AI agents.');
     expect(text).toContain('Two-line install · No DNS change · Same page for humans');
     expect(text).not.toContain('Humans unchanged');
-    expect(html).not.toContain('democv');
+    expect(html).not.toContain('atsify');
     expect(html).toContain('href="/dashboard"');
     expect(html).toContain('href="/docs"');
     expect(text).toContain('Get your API key');
@@ -226,7 +226,7 @@ describe('landing sections behind the demo flag contain nothing fabricated', () 
     expect(html).toContain('id="scanner"');
     expectNoBannedTerms('AgenticScanner', html);
     const text = visibleText(html);
-    for (const fabricated of ['Agentic Native', 'agentic_score', 'democv', 'demodental', 'Tier 1', 'Tier 3', '98', '100%']) {
+    for (const fabricated of ['Agentic Native', 'agentic_score', 'atsify', 'atlantikai', 'Tier 1', 'Tier 3', '98', '100%']) {
       expect(text).not.toContain(fabricated);
     }
   });

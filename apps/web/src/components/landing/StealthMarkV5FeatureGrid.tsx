@@ -72,7 +72,7 @@ export function StealthMarkV5FeatureGrid({ scannedDomain }: { scannedDomain?: st
           ))}
         </div>
 
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4">
           <Link
             href={scannedDomain ? `/api/billing/polar/checkout?plan=starter_pass&domain=${encodeURIComponent(scannedDomain)}` : "/scan"}
             className="inline-flex items-center justify-center px-7 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs sm:text-sm transition shadow-xl shadow-emerald-500/20"

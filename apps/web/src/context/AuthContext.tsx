@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import type { AuthUser } from '@/lib/auth'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
@@ -20,9 +21,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function shouldAutoFetchSession(currentPath: string): boolean {
+  if (process.env.NEXT_PUBLIC_ENABLE_AUTH === '1') return true
+  return (
+    currentPath.startsWith('/dashboard') ||
+    currentPath.startsWith('/console') ||
+    currentPath.startsWith('/auth') ||
+    currentPath.startsWith('/admin') ||
+    currentPath.startsWith('/login')
+  )
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(() => shouldAutoFetchSession(pathname || ''))
   const [isAdmin, setIsAdmin] = useState(false)
 
   const refreshSession = useCallback(async () => {
@@ -87,8 +100,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    refreshSession()
-  }, [refreshSession])
+    const currentPath = pathname || window.location.pathname
+    if (!shouldAutoFetchSession(currentPath)) return
+
+    let cancelled = false
+    void Promise.resolve().then(() => {
+      if (!cancelled) return refreshSession()
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [refreshSession, pathname])
 
   const loginWithGitHub = async () => {
     const supabase = createSupabaseBrowserClient()

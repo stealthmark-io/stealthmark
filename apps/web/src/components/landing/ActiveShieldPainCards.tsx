@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ShieldAlert, Lock, Cpu, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { FIX_PACK } from '@/lib/offer';
+import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
 
 const PAIN_CARDS = [
   {
@@ -33,7 +34,7 @@ const PAIN_CARDS = [
       'Crafted Content-Encoding: br payloads trigger Node2Shell (CVE-2026-111497) RCE, SSRF callbacks target cloud metadata (169.254.169.254 / IPv6 fd00:ec2::254), and unauthenticated /_next/mcp routes expose AI agents.',
     solution:
       'Edge Worker v5.1 virtually patches Node2Shell Brotli streams, blocks IPv4/IPv6 SSRF metadata & DNS-rebinding probes, and traps scanners on /.env, /.git/config & /_next/mcp.',
-    badge: 'Mitigated by Worker v5.1 + 60-Point Audit',
+    badge: `Mitigated by Worker v5.1 + ${SCAN_CHECK_COUNT}-Point Audit`,
     color: 'border-cyan-500/35 bg-cyan-950/10',
     accent: 'text-cyan-400',
   },
@@ -43,7 +44,7 @@ const THREE_PILLARS = [
   {
     icon: ShieldAlert,
     step: 'LAYER 1 · PASSIVE RECON & CLI V5.1',
-    title: '60-Point Passive Recon + Viral CLI (doctor & pdf-check)',
+    title: `${SCAN_CHECK_COUNT}-Point Passive Recon + Viral CLI (doctor & pdf-check)`,
     bullets: [
       'Identity & Cookie Hardening: __Host- prefixes, SameSite=Strict, and FIDO2/WebAuthn posture.',
       'Local Host & PDF Auditing: Run `npx @stealthmark/cli doctor` (SUID, Node2Shell, TeamViewer) & `pdf-check`.',

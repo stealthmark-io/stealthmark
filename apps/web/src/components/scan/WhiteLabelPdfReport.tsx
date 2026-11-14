@@ -9,7 +9,7 @@ import {
   type AuditReport,
   type ExecutiveScorecard,
 } from '@/lib/readiness-report';
-import { CLOUDFLARE_WAF_RULE } from '@/lib/fix-pack-deliverables';
+import { CLOUDFLARE_WAF_RULE } from '@/lib/waf-constants';
 
 interface WhiteLabelPdfReportProps {
   report: AuditReport;

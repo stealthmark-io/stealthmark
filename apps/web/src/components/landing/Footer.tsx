@@ -8,6 +8,7 @@ import { CopyEmail } from "@/components/ui/copy-email";
 import { useLanguage, type Language } from "@/context/LanguageContext";
 import { EMAIL_TEMPLATES } from "@/lib/email-templates";
 import { FIX_PACK } from "@/lib/offer";
+import { SCAN_CHECK_COUNT } from "@/lib/readiness-report";
 
 export const ENGLISH_ONLY_NOTE: Record<Exclude<Language, "en">, string> = {
   es: "Documentación técnica y páginas legales están disponibles en inglés.",
@@ -19,21 +20,21 @@ export function Footer() {
   const englishOnlyNote = language === "en" ? null : ENGLISH_ONLY_NOTE[language];
 
   return (
-    <footer className="border-t border-white/10 bg-[#060709] px-4 sm:px-6 py-14 text-sm text-slate-400">
+    <footer className="border-t border-white/10 bg-[#060709] px-4 sm:px-6 pt-14 pb-24 sm:pb-16 text-sm text-slate-400">
       <div className="max-w-6xl mx-auto space-y-12">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8">
           {/* Brand Col */}
-          <div className="md:col-span-2 space-y-4">
+          <div className="sm:col-span-2 lg:col-span-3 space-y-4">
             <div className="flex items-center gap-3">
               <StealthMarkLogo className="w-8 h-8" />
               <div>
                 <span className="font-bold text-white text-lg">StealthMark</span>
-                <span className="text-cyan-400 ml-2 text-xs font-mono">v5.1 Perimeter &amp; PDF CDR Security</span>
+                <span className="text-cyan-400 ml-2 text-xs font-mono">v6 Perimeter &amp; PDF CDR Security</span>
               </div>
             </div>
 
             <p className="text-xs sm:text-sm text-slate-400 max-w-sm leading-relaxed">
-              60-point passive external perimeter reconnaissance, OWASP Top 10:2025 gates, Edge Worker v5.1 (JA4 Session Binding, Node2Shell CVE-2026-111497 Virtual Patch, Weaponized PDF CDR Inspector, Anti-SSRF IPv4/IPv6 &amp; SonicWall/Cisco/Ivanti 48h Gate), &lt;3KB Client RASP, and viral CLI (<code className="text-cyan-300 font-mono">npx @stealthmark/cli doctor</code> &amp; <code className="text-cyan-300 font-mono">pdf-check</code>) — ({FIX_PACK.label}: {FIX_PACK.starterPriceLabel} USD one-time per domain).
+              {SCAN_CHECK_COUNT}-point passive external perimeter reconnaissance, OWASP Top 10:2025 gates, Edge Worker v5.1 (JA4 Session Binding, Node2Shell CVE-2026-111497 Virtual Patch, Weaponized PDF CDR Inspector, Anti-SSRF IPv4/IPv6 &amp; SonicWall/Cisco/Ivanti 48h Gate), &lt;3KB Client RASP, and viral CLI (<code className="text-cyan-300 font-mono">npx @stealthmark/cli doctor</code> &amp; <code className="text-cyan-300 font-mono">pdf-check</code>) — ({FIX_PACK.label}: {FIX_PACK.starterPriceLabel} USD one-time per domain).
             </p>
 
             {englishOnlyNote && (
@@ -42,7 +43,7 @@ export function Footer() {
           </div>
 
           {/* Col 1: Platform & Solutions */}
-          <div className="space-y-3">
+          <div className="space-y-3 lg:col-span-2">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">
               Platform
             </h4>
@@ -54,12 +55,12 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/#auditor" className="hover:text-white transition">
-                  60-Point Auditor
+                  {SCAN_CHECK_COUNT}-Point Auditor
                 </Link>
               </li>
               <li>
                 <Link href="/#security-matrix" className="hover:text-white transition">
-                  60-Point Matrix &amp; CVEs
+                  {SCAN_CHECK_COUNT}-Point Matrix &amp; CVEs
                 </Link>
               </li>
               <li>
@@ -86,19 +87,24 @@ export function Footer() {
           </div>
 
           {/* Col 2: Security & Docs */}
-          <div className="space-y-3">
+          <div className="space-y-3 lg:col-span-4">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">
               Resources
             </h4>
             <ul className="space-y-2 text-xs sm:text-sm">
               <li>
                 <Link href="/scan" className="hover:text-white transition">
-                  60-Point Surface Scanner (/scan)
+                  {SCAN_CHECK_COUNT}-Point Surface Scanner (/scan)
                 </Link>
               </li>
               <li>
                 <Link href="/docs" className="hover:text-white transition">
                   Security Documentation (/docs)
+                </Link>
+              </li>
+              <li>
+                <Link href="/agents" className="hover:text-white transition">
+                  For AI agents: MCP and APIs (/agents)
                 </Link>
               </li>
               <li>
@@ -130,20 +136,40 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://www.linkedin.com/company/stealthmark-io/"
+                  href="/advisories"
+                  className="hover:text-white transition flex items-center gap-1.5 font-mono text-xs text-slate-300"
+                >
+                  <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Coordinated Disclosure Ledger</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.linkedin.com/company/stealthmark-scan/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition flex items-center gap-1.5 font-mono text-xs text-slate-300"
                 >
                   <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
-                  <span>LinkedIn Official Page</span>
+                  <span>LinkedIn Company (@stealthmark-scan)</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.linkedin.com/in/marcos-cassasnovas/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition flex items-center gap-1.5 font-mono text-xs text-slate-300"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Leadership · Marcos Cassasnovas</span>
                 </a>
               </li>
             </ul>
           </div>
 
           {/* Col 3: Direct Contact & Support Desk */}
-          <div className="space-y-3">
+          <div className="space-y-3 sm:col-span-2 lg:col-span-3">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">
               Contact &amp; Security Desk
             </h4>

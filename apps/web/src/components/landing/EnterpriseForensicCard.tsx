@@ -102,7 +102,7 @@ export function EnterpriseForensicCard() {
               <p className="text-xs text-slate-400">script-src allowed &apos;unsafe-inline&apos; without a nonce or hash.</p>
             </div>
             <div className="p-4 rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/25 space-y-1">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">After &middot; A+ verified ({SCAN_CHECK_COUNT} checks)</div>
+              <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">After &middot; A+ verified</div>
               <div className="flex items-center gap-2 text-white font-bold text-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 Grade A+ &middot; 0 warnings &middot; 0 fails

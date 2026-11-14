@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const SUPPRESSION_FILE = '/tmp/stealthmark_outbound_suppression.json';
+const DEFAULT_SUPPRESSION_FILE = '/var/lib/stealthmark/outbound_suppression.json';
+const FALLBACK_SUPPRESSION_FILE = '/tmp/stealthmark_outbound_suppression.json';
+
+function getSuppressionFile(): string {
+  const preferred = process.env.STEALTHMARK_SUPPRESSION_FILE || DEFAULT_SUPPRESSION_FILE;
+  const dir = path.dirname(preferred);
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return preferred;
+  } catch {
+    const fallbackDir = path.dirname(FALLBACK_SUPPRESSION_FILE);
+    try {
+      if (!fs.existsSync(fallbackDir)) {
+        fs.mkdirSync(fallbackDir, { recursive: true });
+      }
+    } catch {
+      // Non-blocking fallback dir creation
+    }
+    return FALLBACK_SUPPRESSION_FILE;
+  }
+}
 
 function unsubSecret(): string | null {
   return process.env.STEALTHMARK_UNSUB_SECRET || null;
@@ -36,9 +59,10 @@ function verifySig(secret: string, domain: string, email: string, sig: string): 
 
 function recordUnsubscribe(domain: string, email: string, ip: string) {
   try {
+    const targetFile = getSuppressionFile();
     let data: Record<string, { email: string; domain: string; ts: string; ip: string }> = {};
-    if (fs.existsSync(SUPPRESSION_FILE)) {
-      data = JSON.parse(fs.readFileSync(SUPPRESSION_FILE, 'utf-8'));
+    if (fs.existsSync(targetFile)) {
+      data = JSON.parse(fs.readFileSync(targetFile, 'utf-8'));
     }
     const key = (email || domain || 'unknown').toLowerCase().trim();
     data[key] = {
@@ -47,7 +71,9 @@ function recordUnsubscribe(domain: string, email: string, ip: string) {
       ts: new Date().toISOString(),
       ip,
     };
-    fs.writeFileSync(SUPPRESSION_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    const tmpFile = `${targetFile}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, targetFile);
   } catch {
     // Non-blocking persistence fallback
   }

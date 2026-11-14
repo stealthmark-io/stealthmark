@@ -57,7 +57,7 @@ describe('Sprint 1: Admin Control Plane, Billing Portal & Native Whitelist Claim
       const data = await res.json();
       expect(data.success).toBe(false);
       expect(data.organizations).toEqual([]);
-      expect(JSON.stringify(data)).not.toMatch(/DemoCV|DemoDental|Sovereign HQ|142850/);
+      expect(JSON.stringify(data)).not.toMatch(/Atsify|Atlantik|Sovereign HQ|142850/);
     });
 
     it('rejects external unauthorized requests to /api/admin/metrics with HTTP 401', async () => {

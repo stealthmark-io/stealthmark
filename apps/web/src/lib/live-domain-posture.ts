@@ -1,7 +1,12 @@
 import dns from 'node:dns/promises';
 import net from 'node:net';
 import { gatewayInternalSecret } from '@/lib/auth';
-import { computeExecutiveScorecard, type AuditReport, type ExecutiveScorecard } from '@/lib/readiness-report';
+import {
+  enrichWithInternetDbIfMissing,
+  enrichWithV2ActiveShieldChecks,
+  tagOwaspGates,
+} from '@/lib/audit-enrichment';
+import { computeExecutiveScorecard, SCAN_CHECK_COUNT, type AuditReport, type ExecutiveScorecard } from '@/lib/readiness-report';
 import { sanitizeAndValidateDomain } from '@/lib/security/network-guard';
 
 const GATEWAY_URL =
@@ -89,7 +94,7 @@ export async function getLiveDomainPosture(rawDomain: string): Promise<LiveDomai
       label: 'UNVERIFIED DOMAIN',
       defcon: 5,
       activeShieldInstalled: false,
-      totalChecks: 60,
+      totalChecks: SCAN_CHECK_COUNT,
       passCount: 0,
       issueCount: 0,
       auditedAt: new Date().toISOString(),
@@ -118,7 +123,7 @@ export async function getLiveDomainPosture(rawDomain: string): Promise<LiveDomai
       label: 'UNVERIFIED DOMAIN',
       defcon: 5,
       activeShieldInstalled: false,
-      totalChecks: 60,
+      totalChecks: SCAN_CHECK_COUNT,
       passCount: 0,
       issueCount: 0,
       auditedAt: new Date().toISOString(),
@@ -146,11 +151,14 @@ export async function getLiveDomainPosture(rawDomain: string): Promise<LiveDomai
     if (res.ok) {
       const report = (await res.json()) as AuditReport;
       if (report?.summary?.counts && report?.summary?.by_section) {
+        await enrichWithInternetDbIfMissing(validated, report as unknown as Record<string, unknown>);
+        await enrichWithV2ActiveShieldChecks(validated, report as unknown as Record<string, unknown>);
+        tagOwaspGates(report as unknown as Record<string, unknown>);
         const scorecard = computeExecutiveScorecard(report);
         const counts = report.summary.counts;
-        const totalChecks = 60;
+        const totalChecks = SCAN_CHECK_COUNT;
         const issueCount = Number(counts.warn || 0) + Number(counts.fail || 0) + Number(counts.error || 0);
-        const passCount = Number(counts.pass || 0) + (scorecard.grade === 'A+' || scorecard.grade === 'A' ? 15 : 10);
+        const passCount = Number(counts.pass || 0);
         const activeShieldInstalled = scorecard.grade === 'A+' || scorecard.grade === 'A';
 
         const result: LiveDomainPosture = {
@@ -188,7 +196,7 @@ export async function getLiveDomainPosture(rawDomain: string): Promise<LiveDomai
     label: 'PENDING LIVE RECON',
     defcon: 5,
     activeShieldInstalled: false,
-    totalChecks: 60,
+    totalChecks: SCAN_CHECK_COUNT,
     passCount: 30,
     issueCount: 4,
     auditedAt: new Date().toISOString(),

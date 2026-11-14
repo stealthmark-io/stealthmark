@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { StealthMarkLogo } from "@/components/StealthMarkLogo";
 import { useLanguage, Language } from "@/context/LanguageContext";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { SCAN_CHECK_COUNT } from "@/lib/readiness-report";
 
 export function Navbar() {
   const { language, setLanguage, t } = useLanguage();
@@ -20,17 +21,17 @@ export function Navbar() {
   return (
     <div className="sticky top-0 z-50">
       <header className="border-b border-white/[0.08] bg-[#060709]/85 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex flex-nowrap items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex flex-nowrap items-center justify-between gap-2 sm:gap-4">
           <div className="flex flex-nowrap items-center gap-6 min-w-0">
             <Link href="/" className="flex items-center gap-2.5 group shrink-0 whitespace-nowrap">
               <div className="relative shrink-0">
                 <StealthMarkLogo className="w-8 h-8 transition-transform duration-300 group-hover:scale-105" />
               </div>
-              <span className="font-bold text-lg tracking-tight text-white whitespace-nowrap">
+              <span className="font-bold text-base sm:text-lg tracking-tight text-white whitespace-nowrap">
                 StealthMark
               </span>
               <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] text-cyan-300 border border-white/[0.10] font-semibold tracking-wider uppercase whitespace-nowrap shrink-0">
-                v5.1
+                v6
               </span>
             </Link>
 
@@ -73,6 +74,12 @@ export function Navbar() {
                 Docs
               </Link>
               <Link
+                href="/agents"
+                className="hover:text-white transition whitespace-nowrap shrink-0"
+              >
+                Agents
+              </Link>
+              <Link
                 href="/trust"
                 className="hidden xl:inline-block hover:text-white transition whitespace-nowrap shrink-0"
               >
@@ -86,7 +93,7 @@ export function Navbar() {
             <div
               role="group"
               aria-label="Language selector"
-              className="inline-flex flex-nowrap items-center rounded-md bg-white/[0.03] border border-white/[0.08] p-0.5 font-mono text-[11px] shrink-0"
+              className="hidden sm:inline-flex flex-nowrap items-center rounded-md bg-white/[0.03] border border-white/[0.08] p-0.5 font-mono text-[11px] shrink-0"
             >
               {languages.map((lang) => {
                 const active = language === lang.code;
@@ -114,14 +121,16 @@ export function Navbar() {
               >
                 Request Audit
               </Link>
-              <Link href="/scan" className="shrink-0">
-                <Button
-                  size="sm"
-                  variant="gradient"
-                  className="rounded-md px-3.5 sm:px-4 text-xs font-semibold cursor-pointer text-white shadow-lg shadow-cyan-500/20 whitespace-nowrap shrink-0"
-                >
-                  Run 60-Pt Scan
-                </Button>
+              <Link
+                href="/scan"
+                className={buttonVariants({
+                  size: "sm",
+                  variant: "gradient",
+                  className:
+                    "rounded-md px-3 sm:px-4 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 whitespace-nowrap shrink-0",
+                })}
+              >
+                Run {SCAN_CHECK_COUNT}-Pt Scan
               </Link>
 
               <button
@@ -139,6 +148,32 @@ export function Navbar() {
 
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-white/10 bg-[#080a0f]/95 backdrop-blur-2xl px-4 py-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+              <span className="text-xs font-mono text-slate-400">Language</span>
+              <div
+                role="group"
+                aria-label="Language selector"
+                className="inline-flex flex-nowrap items-center rounded-md bg-white/[0.03] border border-white/[0.08] p-0.5 font-mono text-[11px] shrink-0"
+              >
+                {languages.map((lang) => {
+                  const active = language === lang.code;
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => setLanguage(lang.code)}
+                      className={`px-2 py-1 rounded transition cursor-pointer whitespace-nowrap shrink-0 ${
+                        active
+                          ? "bg-white/[0.10] text-white font-semibold"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <nav className="grid grid-cols-2 gap-2 text-xs font-medium text-slate-300">
               <Link
                 href="/scan"
@@ -182,6 +217,13 @@ export function Navbar() {
                 className="px-3 py-2 rounded-md hover:bg-white/5 text-slate-200 transition"
               >
                 Docs
+              </Link>
+              <Link
+                href="/agents"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-md hover:bg-white/5 text-slate-200 transition"
+              >
+                For AI agents
               </Link>
               <Link
                 href="/trust"

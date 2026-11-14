@@ -91,9 +91,50 @@ function extractEvmAddress(topic: string): string {
   return `0x${topic.slice(-40)}`.toLowerCase();
 }
 
-// The $0.99 Fix Pack is the Polar starter product, so a crypto payment grants the same 15,000 credits.
-function resolveCreditsFromAmount(usd: number): { credits: number; packName: string } {
+const ZERO_BIGINT = BigInt(0);
+
+function parseHexUintSafely(raw: unknown): bigint {
+  if (typeof raw !== 'string') return ZERO_BIGINT;
+  const trimmed = raw.trim();
+  const hex = trimmed.replace(/^0x/i, '');
+  if (!hex || !/^[0-9a-fA-F]+$/.test(hex)) return ZERO_BIGINT;
+  try {
+    return BigInt(`0x${hex}`);
+  } catch {
+    return ZERO_BIGINT;
+  }
+}
+
+function parseTxValueSafely(raw: unknown): bigint {
+  if (typeof raw !== 'string') return ZERO_BIGINT;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === '0x' || trimmed === '0X') return ZERO_BIGINT;
+  if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
+    const hex = trimmed.slice(2);
+    if (!hex || !/^[0-9a-fA-F]+$/.test(hex)) return ZERO_BIGINT;
+    try {
+      return BigInt(`0x${hex}`);
+    } catch {
+      return ZERO_BIGINT;
+    }
+  }
+  if (/^[0-9]+$/.test(trimmed)) {
+    try {
+      return BigInt(trimmed);
+    } catch {
+      return ZERO_BIGINT;
+    }
+  }
+  return ZERO_BIGINT;
+}
+
+// The $0.99 Fix Pack is the Polar starter product (15,000 credits); optional lower minUsd supports $0.05 micro-receipts.
+function resolveCreditsFromAmount(
+  usd: number,
+  minUsd: number = FIX_PACK.starterPriceUsd
+): { credits: number; packName: string } {
   if (usd >= FIX_PACK.starterPriceUsd) return { credits: 15_000, packName: FIX_PACK.label };
+  if (minUsd < FIX_PACK.starterPriceUsd && usd >= minUsd) return { credits: 1, packName: 'Micro-Receipt' };
   return { credits: 0, packName: 'Insufficient' };
 }
 
@@ -166,7 +207,8 @@ async function fetchEvmTx(rpcs: string[], txHash: string): Promise<RpcTx | null>
 
 export async function verifyEvmPayment(
   network: 'ethereum' | 'base' | 'polygon' | 'bsc',
-  txHash: string
+  txHash: string,
+  minAmountUsd: number = FIX_PACK.starterPriceUsd
 ): Promise<CryptoVerificationResult> {
   const normalizedHash = txHash.trim();
   const rpcs =
@@ -230,6 +272,8 @@ export async function verifyEvmPayment(
           [BSC_USDC]: { symbol: 'USDC', decimals: 18 },
         };
 
+  let dustFailure: CryptoVerificationResult | null = null;
+
   for (const log of receipt.logs || []) {
     const contractAddr = (log.address || '').toLowerCase();
     const tokenMeta = allowedTokens[contractAddr];
@@ -241,24 +285,27 @@ export async function verifyEvmPayment(
     const toAddr = extractEvmAddress(log.topics[2]);
     if (toAddr !== targetWallet) continue;
 
-    const rawAmount = BigInt(log.data || '0x0');
+    const rawAmount = parseHexUintSafely(log.data);
     const divisor = BigInt(10) ** BigInt(tokenMeta.decimals);
     const amountUsd = Number(rawAmount) / Number(divisor);
-    const { credits, packName } = resolveCreditsFromAmount(amountUsd);
+    const { credits, packName } = resolveCreditsFromAmount(amountUsd, minAmountUsd);
 
     if (credits <= 0) {
-      return {
-        valid: false,
-        network,
-        txHash: normalizedHash,
-        senderAddress: fromAddr,
-        recipientAddress: toAddr,
-        tokenSymbol: tokenMeta.symbol,
-        amountUsd,
-        creditsGranted: 0,
-        packName,
-        error: `Transfer amount ($${amountUsd.toFixed(2)}) is below the ${FIX_PACK.starterPriceLabel} USD minimum for the Fix Pack.`,
-      };
+      if (!dustFailure || amountUsd > dustFailure.amountUsd) {
+        dustFailure = {
+          valid: false,
+          network,
+          txHash: normalizedHash,
+          senderAddress: fromAddr,
+          recipientAddress: toAddr,
+          tokenSymbol: tokenMeta.symbol,
+          amountUsd,
+          creditsGranted: 0,
+          packName,
+          error: `Transfer amount ($${amountUsd.toFixed(2)}) is below the $${minAmountUsd.toFixed(2)} USD minimum.`,
+        };
+      }
+      continue;
     }
 
     return {
@@ -277,25 +324,44 @@ export async function verifyEvmPayment(
   // Also check native ETH / BNB / POL transfer to targetWallet
   const tx = await fetchEvmTx(rpcs, normalizedHash);
   if (tx && (tx.to || '').toLowerCase() === targetWallet && tx.value && tx.value !== '0x0') {
-    const wei = BigInt(tx.value);
-    const nativeAmount = Number(wei) / 1e18;
-    const approxPrice = network === 'ethereum' || network === 'base' ? 2800 : network === 'bsc' ? 600 : 0.45;
-    const amountUsd = nativeAmount * approxPrice;
-    const { credits, packName } = resolveCreditsFromAmount(amountUsd);
-    const nativeSymbol = network === 'bsc' ? 'BNB' : network === 'polygon' ? 'POL' : 'ETH';
-    if (credits > 0) {
-      return {
-        valid: true,
-        network,
-        txHash: normalizedHash,
-        senderAddress: tx.from,
-        recipientAddress: targetWallet,
-        tokenSymbol: nativeSymbol,
-        amountUsd,
-        creditsGranted: credits,
-        packName,
-      };
+    const wei = parseTxValueSafely(tx.value);
+    if (wei > ZERO_BIGINT) {
+      const nativeAmount = Number(wei) / 1e18;
+      const approxPrice = network === 'ethereum' || network === 'base' ? 2800 : network === 'bsc' ? 600 : 0.45;
+      const amountUsd = nativeAmount * approxPrice;
+      const { credits, packName } = resolveCreditsFromAmount(amountUsd, minAmountUsd);
+      const nativeSymbol = network === 'bsc' ? 'BNB' : network === 'polygon' ? 'POL' : 'ETH';
+      if (credits > 0) {
+        return {
+          valid: true,
+          network,
+          txHash: normalizedHash,
+          senderAddress: tx.from,
+          recipientAddress: targetWallet,
+          tokenSymbol: nativeSymbol,
+          amountUsd,
+          creditsGranted: credits,
+          packName,
+        };
+      } else if (!dustFailure || amountUsd > dustFailure.amountUsd) {
+        dustFailure = {
+          valid: false,
+          network,
+          txHash: normalizedHash,
+          senderAddress: tx.from,
+          recipientAddress: targetWallet,
+          tokenSymbol: nativeSymbol,
+          amountUsd,
+          creditsGranted: 0,
+          packName,
+          error: `Native transfer ($${amountUsd.toFixed(2)}) is below the $${minAmountUsd.toFixed(2)} USD minimum.`,
+        };
+      }
     }
+  }
+
+  if (dustFailure) {
+    return dustFailure;
   }
 
   return {
@@ -311,7 +377,10 @@ export async function verifyEvmPayment(
   };
 }
 
-export async function verifyBtcPayment(txHash: string): Promise<CryptoVerificationResult> {
+export async function verifyBtcPayment(
+  txHash: string,
+  minAmountUsd: number = FIX_PACK.starterPriceUsd
+): Promise<CryptoVerificationResult> {
   const normalizedHash = txHash.trim();
   const targetWallet = OFFICIAL_CRYPTO_WALLETS.btc;
   const endpoints = [
@@ -340,7 +409,7 @@ export async function verifyBtcPayment(txHash: string): Promise<CryptoVerificati
       if (satsToTarget > 0) {
         const btcAmount = satsToTarget / 1e8;
         const amountUsd = btcAmount * 90000; // Conservative BTC USD reference
-        const { credits, packName } = resolveCreditsFromAmount(amountUsd);
+        const { credits, packName } = resolveCreditsFromAmount(amountUsd, minAmountUsd);
         if (credits > 0) {
           return {
             valid: true,
@@ -362,7 +431,7 @@ export async function verifyBtcPayment(txHash: string): Promise<CryptoVerificati
           amountUsd,
           creditsGranted: 0,
           packName,
-          error: `BTC transfer ($${amountUsd.toFixed(2)}) is below minimum (${FIX_PACK.starterPriceLabel} USD).`,
+          error: `BTC transfer ($${amountUsd.toFixed(2)}) is below minimum ($${minAmountUsd.toFixed(2)} USD).`,
         };
       }
     } catch {
@@ -385,7 +454,10 @@ export async function verifyBtcPayment(txHash: string): Promise<CryptoVerificati
   };
 }
 
-export async function verifySolanaPayment(txHash: string): Promise<CryptoVerificationResult> {
+export async function verifySolanaPayment(
+  txHash: string,
+  minAmountUsd: number = FIX_PACK.starterPriceUsd
+): Promise<CryptoVerificationResult> {
   const normalizedHash = txHash.trim();
   const targetWallet = OFFICIAL_CRYPTO_WALLETS.solana;
 
@@ -417,7 +489,7 @@ export async function verifySolanaPayment(txHash: string): Promise<CryptoVerific
           const postAmt = Number(post?.uiTokenAmount?.uiAmount || 0);
           const deltaUsd = postAmt - preAmt;
           if (deltaUsd > 0) {
-            const { credits, packName } = resolveCreditsFromAmount(deltaUsd);
+            const { credits, packName } = resolveCreditsFromAmount(deltaUsd, minAmountUsd);
             if (credits > 0) {
               return {
                 valid: true,
@@ -445,7 +517,7 @@ export async function verifySolanaPayment(txHash: string): Promise<CryptoVerific
         const deltaSol = (postLamports - preLamports) / 1e9;
         if (deltaSol > 0) {
           const amountUsd = deltaSol * 180; // SOL USD reference
-          const { credits, packName } = resolveCreditsFromAmount(amountUsd);
+          const { credits, packName } = resolveCreditsFromAmount(amountUsd, minAmountUsd);
           if (credits > 0) {
             return {
               valid: true,
@@ -478,7 +550,10 @@ export async function verifySolanaPayment(txHash: string): Promise<CryptoVerific
   };
 }
 
-export async function verifyTronPayment(txHash: string): Promise<CryptoVerificationResult> {
+export async function verifyTronPayment(
+  txHash: string,
+  minAmountUsd: number = FIX_PACK.starterPriceUsd
+): Promise<CryptoVerificationResult> {
   const normalizedHash = txHash.trim().replace(/^0x/i, '');
 
   for (const endpoint of TRON_ENDPOINTS) {
@@ -509,6 +584,7 @@ export async function verifyTronPayment(txHash: string): Promise<CryptoVerificat
         };
       }
 
+      let dustFailure: CryptoVerificationResult | null = null;
       const logs = Array.isArray(info.log) ? info.log : [];
       for (const log of logs) {
         const contractHex = (log.address || '').toLowerCase();
@@ -527,22 +603,25 @@ export async function verifyTronPayment(txHash: string): Promise<CryptoVerificat
         const targetHex20 = TRON_WALLET_HEX.slice(-40).toLowerCase();
         if (toHex20 !== targetHex20) continue;
 
-        const rawAmount = BigInt(`0x${log.data || '0'}`);
+        const rawAmount = parseHexUintSafely(log.data);
         const amountUsd = Number(rawAmount) / 1_000_000;
-        const { credits, packName } = resolveCreditsFromAmount(amountUsd);
+        const { credits, packName } = resolveCreditsFromAmount(amountUsd, minAmountUsd);
 
         if (credits <= 0) {
-          return {
-            valid: false,
-            network: 'tron',
-            txHash: normalizedHash,
-            recipientAddress: OFFICIAL_CRYPTO_WALLETS.tron,
-            tokenSymbol: 'USDT-TRC20',
-            amountUsd,
-            creditsGranted: 0,
-            packName,
-            error: `TRC-20 USDT amount ($${amountUsd.toFixed(2)}) is below minimum (${FIX_PACK.starterPriceLabel} USD).`,
-          };
+          if (!dustFailure || amountUsd > dustFailure.amountUsd) {
+            dustFailure = {
+              valid: false,
+              network: 'tron',
+              txHash: normalizedHash,
+              recipientAddress: OFFICIAL_CRYPTO_WALLETS.tron,
+              tokenSymbol: 'USDT-TRC20',
+              amountUsd,
+              creditsGranted: 0,
+              packName,
+              error: `TRC-20 USDT amount ($${amountUsd.toFixed(2)}) is below minimum ($${minAmountUsd.toFixed(2)} USD).`,
+            };
+          }
+          continue;
         }
 
         return {
@@ -555,6 +634,10 @@ export async function verifyTronPayment(txHash: string): Promise<CryptoVerificat
           creditsGranted: credits,
           packName,
         };
+      }
+
+      if (dustFailure) {
+        return dustFailure;
       }
     } catch {
       // try next endpoint
@@ -589,10 +672,11 @@ export function canonicalTxHash(network: SupportedCryptoNetwork, raw: string): s
 
 export async function verifyCryptoPayment(
   network: SupportedCryptoNetwork,
-  txHash: string
+  txHash: string,
+  minAmountUsd: number = FIX_PACK.starterPriceUsd
 ): Promise<CryptoVerificationResult> {
-  if (network === 'tron') return verifyTronPayment(txHash);
-  if (network === 'btc') return verifyBtcPayment(txHash);
-  if (network === 'solana') return verifySolanaPayment(txHash);
-  return verifyEvmPayment(network, txHash);
+  if (network === 'tron') return verifyTronPayment(txHash, minAmountUsd);
+  if (network === 'btc') return verifyBtcPayment(txHash, minAmountUsd);
+  if (network === 'solana') return verifySolanaPayment(txHash, minAmountUsd);
+  return verifyEvmPayment(network, txHash, minAmountUsd);
 }

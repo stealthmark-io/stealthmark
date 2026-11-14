@@ -1,4 +1,3 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { canonicalTxHash, verifyCryptoPayment, type SupportedCryptoNetwork } from '@/lib/crypto-verifier';
 import { readBodyText } from '@/lib/request-body';
@@ -6,113 +5,23 @@ import { verifyScanUnlockToken } from '@/lib/scan-unlock';
 import { sanitizeAndValidateDomain } from '@/lib/security/network-guard';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { SITE_ORIGIN } from '@/lib/site';
-
-// Receipts are signed only with a configured secret: a default in the source would let anyone forge one.
-function receiptSecret(): string | null {
-  return process.env.STEALTHMARK_RECEIPT_HMAC_SECRET || process.env.STEALTHMARK_UNSUB_SECRET || null;
-}
+import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
+import {
+  buildSignedTrustReceipt,
+  computeTrustDecision,
+  fetchDomainAudit,
+  receiptSecret,
+  SANDBOX_RECEIPT_RAIL as SANDBOX_RAIL,
+  verifyCanonicalReceiptConstantTime,
+  type CanonicalReceiptPayload,
+  type DomainAudit,
+} from '@/lib/trust-receipt';
 
 const BASE_USDC_CONTRACT = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 const EVM_TREASURY_WALLET = '0xc8dc4ecb93c4c665Fad07E1261F5f7D60e3C6E0F';
 const TRON_TREASURY_WALLET = 'TYgGahN7wK9NtUVFZaXCwZqktaYmkuNxD8';
 
 const MAX_BODY_BYTES = 4096;
-// A sandbox receipt is signed so integrators can test the flow, but verify_receipt never reports it as valid.
-const SANDBOX_RAIL = 'SANDBOX_PREVIEW_NON_PRODUCTION';
-
-interface CanonicalReceiptPayload {
-  version: 'stealthmark-trust-receipt-v1';
-  receiptId: string;
-  nonce: string;
-  sellerDomain: string;
-  buyerAgent: string;
-  statedClaim: string;
-  decision: 'ALLOW_SETTLEMENT' | 'CONDITIONAL_ESCROW' | 'ABORT_HIGH_RISK';
-  grade: string;
-  passCount: number;
-  warnCount: number;
-  failCount: number;
-  paymentRail: string;
-  issuedAt: string;
-  expiresAt: string;
-}
-
-function signCanonicalReceipt(payload: CanonicalReceiptPayload, secret: string): string {
-  const canonical = JSON.stringify({
-    version: payload.version,
-    receiptId: payload.receiptId,
-    nonce: payload.nonce,
-    sellerDomain: payload.sellerDomain,
-    buyerAgent: payload.buyerAgent,
-    statedClaim: payload.statedClaim,
-    decision: payload.decision,
-    grade: payload.grade,
-    passCount: payload.passCount,
-    warnCount: payload.warnCount,
-    failCount: payload.failCount,
-    paymentRail: payload.paymentRail,
-    issuedAt: payload.issuedAt,
-    expiresAt: payload.expiresAt,
-  });
-  return createHmac('sha256', secret).update(canonical).digest('hex');
-}
-
-function verifyCanonicalReceiptConstantTime(
-  payload: CanonicalReceiptPayload,
-  signatureHex: string,
-  secret: string
-): boolean {
-  try {
-    const expectedHex = signCanonicalReceipt(payload, secret);
-    const a = Buffer.from(expectedHex, 'hex');
-    const b = Buffer.from(String(signatureHex || ''), 'hex');
-    if (a.length !== b.length || a.length === 0) return false;
-    return timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
-}
-
-interface DomainAudit {
-  grade: string;
-  passCount: number;
-  warnCount: number;
-  failCount: number;
-}
-
-interface AuditBody {
-  badge?: { grade?: unknown } | null;
-  summary?: { counts?: { pass?: unknown; warn?: unknown; fail?: unknown } } | null;
-}
-
-const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0;
-
-// Returns null when the audit cannot be read, so a receipt is never signed over counts the scanner did not produce.
-async function fetchDomainAudit(domain: string): Promise<DomainAudit | null> {
-  try {
-    const res = await fetch(`http://127.0.0.1:3000/api/scan/audit?domain=${encodeURIComponent(domain)}`, {
-      headers: { 'User-Agent': 'StealthMarkOutboundAuditor/1.0' },
-      cache: 'no-store',
-    });
-    if (!res.ok) {
-      console.error(`[Trust Receipt] audit answered ${res.status}`);
-      return null;
-    }
-    const data = (await res.json()) as AuditBody | null;
-    const grade = data?.badge?.grade;
-    const pass = data?.summary?.counts?.pass;
-    const warn = data?.summary?.counts?.warn;
-    const fail = data?.summary?.counts?.fail;
-    if (typeof grade !== 'string' || !grade || !isCount(pass) || !isCount(warn) || !isCount(fail)) {
-      console.error('[Trust Receipt] audit answered without a grade and counts');
-      return null;
-    }
-    return { grade, passCount: pass, warnCount: warn, failCount: fail };
-  } catch (err: unknown) {
-    console.error('[Trust Receipt] audit failed:', err instanceof Error ? err.message : err);
-    return null;
-  }
-}
 
 function auditUnavailable() {
   return NextResponse.json(
@@ -147,12 +56,7 @@ export async function GET(req: Request) {
 
   const audit = await fetchDomainAudit(domain);
   if (!audit) return auditUnavailable();
-  const decision: CanonicalReceiptPayload['decision'] =
-    audit.failCount > 0
-      ? 'ABORT_HIGH_RISK'
-      : audit.warnCount <= 3
-        ? 'ALLOW_SETTLEMENT'
-        : 'CONDITIONAL_ESCROW';
+  const decision = computeTrustDecision(audit);
 
   return NextResponse.json({
     ok: true,
@@ -165,7 +69,7 @@ export async function GET(req: Request) {
       passedControls: audit.passCount,
       warnings: audit.warnCount,
       criticalFailures: audit.failCount,
-      benchmark: '60-Point OWASP Top 10:2025 & Agentic Surface Standard',
+      benchmark: `${SCAN_CHECK_COUNT}-Point OWASP Top 10:2025 & Agentic Surface Standard`,
     },
     x402PaymentRequiredForSignedReceipt: {
       x402Version: 1,
@@ -251,7 +155,7 @@ export async function POST(req: Request) {
     // 2. Issue a new signed Pre-Pay Trust & Claim-Verification Receipt
     const domain = sanitizeAndValidateDomain(String(body.domain || body.sellerDomain || ''));
     const buyerAgent = String(body.buyerAgent || 'autonomous_agent').slice(0, 80);
-    const statedClaim = String(body.claim || body.statedClaim || '60-Point OWASP Top 10:2025 Counterparty Verification').slice(0, 180);
+    const statedClaim = String(body.claim || body.statedClaim || `${SCAN_CHECK_COUNT}-Point OWASP Top 10:2025 Counterparty Verification`).slice(0, 180);
     const txHash = String(body.txHash || req.headers.get('x-payment-tx') || '').trim();
     const chain = String(body.chain || 'base').trim().toLowerCase() as SupportedCryptoNetwork;
     const unlockToken = String(body.unlockToken || '').trim();
@@ -293,9 +197,12 @@ export async function POST(req: Request) {
       }
       if (existing) return replayBlocked();
       const verification = await verifyCryptoPayment(chain, canonicalHash);
-      if (!verification.valid) {
+      if (!verification.valid || verification.amountUsd < 9) {
+        const error = !verification.valid
+          ? verification.error || 'On-chain payment verification failed'
+          : `Payment amount ($${verification.amountUsd.toFixed(2)} USD) is below the required $9.00 USD for a Trust Receipt.`;
         return NextResponse.json(
-          { ok: false, error: verification.error || 'On-chain payment verification failed' },
+          { ok: false, error },
           { status: 402 }
         );
       }
@@ -353,33 +260,15 @@ export async function POST(req: Request) {
 
     audit ??= await fetchDomainAudit(domain);
     if (!audit) return auditUnavailable();
-    const decision: CanonicalReceiptPayload['decision'] =
-      audit.failCount > 0
-        ? 'ABORT_HIGH_RISK'
-        : audit.warnCount <= 3
-          ? 'ALLOW_SETTLEMENT'
-          : 'CONDITIONAL_ESCROW';
 
-    const issuedAt = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
-    const receiptPayload: CanonicalReceiptPayload = {
-      version: 'stealthmark-trust-receipt-v1',
-      receiptId: `tr_${randomBytes(10).toString('hex')}`,
-      nonce: randomBytes(16).toString('hex'),
-      sellerDomain: domain,
+    const { receipt: receiptPayload, signature } = buildSignedTrustReceipt({
+      domain,
       buyerAgent,
       statedClaim,
-      decision,
-      grade: audit.grade,
-      passCount: audit.passCount,
-      warnCount: audit.warnCount,
-      failCount: audit.failCount,
       paymentRail,
-      issuedAt,
-      expiresAt,
-    };
-
-    const signature = signCanonicalReceipt(receiptPayload, secret);
+      audit,
+      secret,
+    });
 
     return NextResponse.json({
       ok: true,

@@ -2,12 +2,12 @@ import React from 'react';
 import Link from 'next/link';
 import { Check, Heart, CreditCard, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
+import { buttonVariants } from '@/components/ui/button';
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT } from '@/lib/readiness-report';
 import { DONATION_OPTIONS, FIX_PACK, FREE_SCANS_PER_DOMAIN, UNLOCK_DAYS } from '@/lib/offer';
 
 const FREE_AUDIT_FEATURES: readonly string[] = [
-  `${SCAN_CHECK_COUNT} passive checks across TLS, DNS, headers, exposed files and the AI surface`,
+  `${SCAN_MEASURED_COUNT} passive checks across TLS, DNS, headers, exposed files and the AI surface`,
   'Full report with a fix recommendation for every finding',
   `${FREE_SCANS_PER_DOMAIN} free scans per domain`,
   'No signup, no card',
@@ -26,7 +26,7 @@ const X402_MICROSERVICES_FEATURES: readonly string[] = [
   'C2 Polymarket ↔ Kalshi Arb Trap Detector: Z3 semantic oracle divergence verifier (/x402/arb-trap/preview)',
   'C3 x402 Seller Trust Grade & WAF Auditor: 6-dimension passive grader & dynamic SVG badge (/x402/trust-grade/leaderboard)',
   'C4 Multichain OFT / NTT / CCIP Verifier: LayerZero v2, Wormhole & Chainlink CCIP peer symmetry + EAS attestations',
-  '16 Base Mainnet x402 Pay-Per-Proof Verification Endpoints + 12-Tool Non-Custodial Execution MCP (Hyperliquid & Solana Rent Reclaimer)',
+  '20 Base Mainnet x402 Pay-Per-Proof Verification Endpoints + 12-Tool Non-Custodial Execution MCP (Hyperliquid & Solana Rent Reclaimer)',
 ];
 
 function FeatureList({ items, iconClass }: { items: readonly string[]; iconClass: string }) {
@@ -53,7 +53,7 @@ export function CybersecurityAuditTiers() {
           Free {SCAN_CHECK_COUNT}-Point Audits. One {FIX_PACK.starterPriceLabel} {FIX_PACK.label} Per Domain.
         </h2>
         <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-          Scan any domain on <strong>stealthmark.io</strong> with no signup and no card: the full report, with a fix for every finding, is free for the first <strong>{FREE_SCANS_PER_DOMAIN} scans of each domain</strong>. The {FIX_PACK.label} ({FIX_PACK.starterPriceLabel} one-time per domain) adds the deployable files and unlimited re-scans for {UNLOCK_DAYS} days. Larger scopes are quoted as Enterprise engagements, and agent builders can call our 16 x402 microservices on Base.
+          Scan any domain on <strong>stealthmark.io</strong> with no signup and no card: the full report, with a fix for every finding, is free for the first <strong>{FREE_SCANS_PER_DOMAIN} scans of each domain</strong>. The {FIX_PACK.label} ({FIX_PACK.starterPriceLabel} one-time per domain) adds the deployable files and unlimited re-scans for {UNLOCK_DAYS} days. Larger scopes are quoted as Enterprise engagements, and agent builders can call our 20 x402 microservices on Base.
         </p>
       </div>
 
@@ -79,11 +79,17 @@ export function CybersecurityAuditTiers() {
             </p>
             <FeatureList items={FREE_AUDIT_FEATURES} iconClass="text-emerald-400" />
           </div>
-          <Link href="/scan" className="w-full block pt-4">
-            <Button variant="gradient" className="w-full text-xs font-semibold py-3 cursor-pointer">
+          <div className="w-full block pt-4">
+            <Link
+              href="/scan"
+              className={buttonVariants({
+                variant: "gradient",
+                className: "w-full text-xs font-semibold py-3 cursor-pointer",
+              })}
+            >
               Run Free {SCAN_CHECK_COUNT}-Point Scan
-            </Button>
-          </Link>
+            </Link>
+          </div>
         </div>
 
         {/* Card 2: Fix Pack */}
@@ -121,19 +127,19 @@ export function CybersecurityAuditTiers() {
           </div>
         </div>
 
-        {/* Card 3: 16 x402 Formal Z3 & Crypto Security Microservices Showcase */}
+        {/* Card 3: 20 x402 Formal Z3 & Crypto Security Microservices Showcase */}
         <div className="p-6 sm:p-8 rounded-3xl bg-[#0D1017]/90 border border-blue-500/40 hover:border-blue-400/60 backdrop-blur-xl flex flex-col justify-between space-y-6 transition-all">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold font-mono text-sky-400 uppercase tracking-wider">Omni x402 &amp; MCP Microservices</span>
               <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-blue-500/15 text-sky-300 border border-blue-500/30 font-semibold uppercase tracking-wider">
-                16 x402 APIs + 12 MCP Tools
+                20 x402 APIs + 12 MCP Tools
               </span>
             </div>
             <div>
-              <div className="text-3xl font-extrabold text-white font-mono flex items-baseline gap-2">
-                x402 &amp; DeFi Z3
-                <span className="text-xs font-normal text-slate-400">Base Mainnet USDC</span>
+              <div className="text-3xl font-extrabold text-white font-mono flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                <span className="whitespace-nowrap">x402 &amp; DeFi Z3</span>
+                <span className="text-xs font-normal text-slate-400 whitespace-nowrap">Base Mainnet USDC</span>
               </div>
               <span className="text-[11px] text-sky-300 font-mono">Streams SCC &middot; Arb Trap &middot; Trust Grade &middot; OFT/NTT/CCIP</span>
             </div>
@@ -176,7 +182,7 @@ export function CybersecurityAuditTiers() {
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl bg-white/10 border border-white/20 text-white text-[11px] font-mono font-bold hover:bg-white/20 transition"
             >
-              <span>16 x402 APIs</span>
+              <span>20 x402 APIs</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>

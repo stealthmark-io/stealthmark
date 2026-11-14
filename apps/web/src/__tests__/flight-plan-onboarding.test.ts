@@ -2,19 +2,19 @@ import { describe, it, expect } from 'vitest';
 
 describe('Dashboard Onboarding Wizard & Flight Plan Blueprint Logic', () => {
   const DOMAIN_PRESETS: Record<string, Array<{ id: string; action: string; path: string; enabled: boolean; isBlocked?: boolean; rateLimit: number }>> = {
-    demodental: [
+    atlantikai: [
       { id: 'plans', action: 'GET_PLANS', path: '/agent/v1/plans', enabled: true, rateLimit: 60 },
       { id: 'simulate', action: 'SIMULATE_SMILE', path: '/agent/v1/simulate', enabled: true, rateLimit: 20 },
       { id: 'checkout', action: 'CHECKOUT', path: '/agent/v1/checkout', enabled: true, rateLimit: 10 },
       { id: 'admin', action: 'ADMIN_ACCESS', path: '/admin/*', enabled: false, isBlocked: true, rateLimit: 0 },
     ],
-    demotickets: [
+    deportick: [
       { id: 'events', action: 'LIST_EVENTS', path: '/agent/v1/events', enabled: true, rateLimit: 120 },
       { id: 'seats', action: 'CHECK_SEATS', path: '/agent/v1/seats', enabled: true, rateLimit: 60 },
       { id: 'purchase', action: 'PURCHASE', path: '/agent/v1/purchase', enabled: true, rateLimit: 10 },
       { id: 'abandoned', action: 'VIEW_CARTS', path: '/cart/abandoned', enabled: false, isBlocked: true, rateLimit: 0 },
     ],
-    democv: [
+    atsify: [
       { id: 'upload', action: 'UPLOAD_CV', path: '/agent/v1/upload', enabled: true, rateLimit: 30 },
       { id: 'audit', action: 'AUDIT_CV', path: '/agent/v1/audit', enabled: true, rateLimit: 20 },
       { id: 'report', action: 'GET_REPORT', path: '/agent/v1/report', enabled: true, rateLimit: 60 },
@@ -36,8 +36,8 @@ describe('Dashboard Onboarding Wizard & Flight Plan Blueprint Logic', () => {
     ];
   }
 
-  it('detects specialized waypoints for demodental.example.com with strict admin lock', () => {
-    const caps = detectCapabilities('https://demodental.example.com');
+  it('detects specialized waypoints for atlantikai.com with strict admin lock', () => {
+    const caps = detectCapabilities('https://atlantikai.com');
     expect(caps).toHaveLength(4);
     const adminRoute = caps.find(c => c.id === 'admin');
     expect(adminRoute?.isBlocked).toBe(true);
@@ -48,8 +48,8 @@ describe('Dashboard Onboarding Wizard & Flight Plan Blueprint Logic', () => {
     expect(checkout?.path).toBe('/agent/v1/checkout');
   });
 
-  it('detects ticketing waypoints for demotickets.example.com with abandoned cart guard', () => {
-    const caps = detectCapabilities('demotickets.example.com');
+  it('detects ticketing waypoints for deportick.com with abandoned cart guard', () => {
+    const caps = detectCapabilities('deportick.com');
     expect(caps).toHaveLength(4);
     const cartRoute = caps.find(c => c.id === 'abandoned');
     expect(cartRoute?.isBlocked).toBe(true);
@@ -70,7 +70,7 @@ describe('Dashboard Onboarding Wizard & Flight Plan Blueprint Logic', () => {
   });
 
   it('verifies that enabled routes filter out blocked security paths', () => {
-    const caps = detectCapabilities('democv.example.com');
+    const caps = detectCapabilities('atsify.com');
     const enabledActiveRoutes = caps.filter(c => c.enabled && !c.isBlocked);
     expect(enabledActiveRoutes).toHaveLength(3);
     expect(enabledActiveRoutes.map(r => r.path)).toEqual([

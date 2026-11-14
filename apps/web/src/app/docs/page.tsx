@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { SCAN_CHECK_COUNT } from "@/lib/readiness-report";
+import { buttonVariants } from "@/components/ui/button";
+import { SCAN_CHECK_COUNT, SCAN_COVERAGE, SCAN_MEASURED_COUNT } from "@/lib/readiness-report";
 import { DONATION_OPTIONS, FIX_PACK, FREE_SCANS_PER_DOMAIN, UNLOCK_DAYS } from "@/lib/offer";
 
 interface DocSection {
@@ -25,9 +25,9 @@ interface DocSection {
 }
 
 const SECTIONS: DocSection[] = [
-  { id: "overview", title: "Architecture & 60-Point Recon", category: "Getting Started", badge: "Core" },
+  { id: "overview", title: `Architecture & ${SCAN_CHECK_COUNT}-Point Recon`, category: "Getting Started", badge: "Core" },
   { id: "quickstart", title: "Grade A+ Edge Hardening", category: "Getting Started", badge: "Fix Pack" },
-  { id: "controls", title: "60-Point Matrix & 2026 CVEs", category: "Security Engine" },
+  { id: "controls", title: `${SCAN_CHECK_COUNT}-Point Matrix & 2026 CVEs`, category: "Security Engine" },
   { id: "owasp", title: "OWASP Top 10:2025 Gates", category: "Security Engine" },
   { id: "audit-api", title: "Audit API & CLI", category: "API Reference" },
   { id: "tiers", title: "Tiers & Pricing", category: "Engagement" },
@@ -66,28 +66,30 @@ export default function DocsPage() {
   const categories = Array.from(new Set(filteredSections.map((s) => s.category)));
 
   return (
-    <div className="min-h-screen bg-[#060709] text-slate-100 flex flex-col bg-grid-pattern relative selection:bg-cyan-500/30 selection:text-white">
-      <div className="absolute top-0 left-1/4 w-[600px] h-[350px] ambient-glow-purple pointer-events-none" />
-      <div className="absolute top-24 right-1/4 w-[500px] h-[250px] ambient-glow-cyan pointer-events-none" />
+    <div className="min-h-screen bg-[#060709] text-slate-100 flex flex-col bg-grid-pattern relative selection:bg-cyan-500/30 selection:text-white overflow-x-hidden">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[350px] ambient-glow-purple" />
+        <div className="absolute top-24 right-1/4 w-[500px] h-[250px] ambient-glow-cyan" />
+      </div>
 
       {/* Top Navigation */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b0d13]/85 backdrop-blur-xl px-4 sm:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-6">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b0d13]/85 backdrop-blur-xl px-3 sm:px-8 py-3.5 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-6 min-w-0">
           <Link
             href="/"
-            className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 hover:text-white transition"
+            className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 hover:text-white transition shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Back to Home</span>
           </Link>
 
-          <div className="h-4 w-px bg-white/10" />
+          <div className="h-4 w-px bg-white/10 shrink-0" />
 
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <StealthMascot variant="logo" />
             <span className="font-bold text-white tracking-tight">StealthMark</span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold">
-              Security Docs v5.1
+            <span className="hidden md:inline-flex text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold">
+              Security Docs v6
             </span>
           </Link>
 
@@ -104,24 +106,25 @@ export default function DocsPage() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <Link
             href="/enterprise/contact"
             className="hidden sm:inline-flex items-center justify-center h-8 px-3 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.10] text-xs font-mono text-slate-200 transition"
           >
             Request Forensic Audit
           </Link>
-          <Link href="/scan">
-            <Button size="sm" variant="gradient" className="text-xs cursor-pointer">
-              <span>Run {SCAN_CHECK_COUNT}-Point Scan</span>
-              <ExternalLink className="w-3.5 h-3.5 ml-1" />
-            </Button>
+          <Link
+            href="/scan"
+            className={buttonVariants({ size: "sm", variant: "gradient", className: "text-xs whitespace-nowrap shrink-0" })}
+          >
+            <span>Run {SCAN_CHECK_COUNT}-Point Scan</span>
+            <ExternalLink className="w-3.5 h-3.5 ml-1 inline" />
           </Link>
         </div>
       </header>
 
       {/* Main Layout */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-8 relative z-10">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-8 relative z-10 min-w-0">
         {/* Left Sidebar */}
         <aside className="w-64 border-r border-white/10 py-2 pr-6 hidden md:block shrink-0">
           <div className="mb-5 relative">
@@ -170,14 +173,14 @@ export default function DocsPage() {
         </aside>
 
         {/* Content Body */}
-        <main className="flex-1 max-w-4xl space-y-8">
+        <main className="flex-1 min-w-0 w-full max-w-4xl space-y-8">
           {/* Mobile Section Switcher */}
-          <div className="flex md:hidden gap-2 overflow-x-auto pb-2">
+          <div className="flex flex-wrap md:hidden gap-2 pb-2 min-w-0 max-w-full">
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
                 onClick={() => setActiveSection(s.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap border ${
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-mono border cursor-pointer ${
                   activeSection === s.id
                     ? "bg-cyan-500/20 text-cyan-200 border-cyan-500/40 font-bold"
                     : "bg-white/[0.03] text-slate-400 border-white/10"
@@ -209,13 +212,13 @@ export default function DocsPage() {
                   {SCAN_CHECK_COUNT}-Point Passive Recon &amp; Perimeter Security Architecture
                 </h1>
                 <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-                  StealthMark v5.1 is a cybersecurity reconnaissance, edge virtual-patching, PDF CDR, and forensic auditing platform. Our
+                  StealthMark v6 is a cybersecurity reconnaissance, edge virtual-patching, PDF CDR, and forensic auditing platform. Our
                   automated scanner evaluates any public domain across{" "}
-                  <strong className="text-white">{SCAN_CHECK_COUNT} non-intrusive security controls</strong> mapped to{" "}
-                  <strong className="text-cyan-300">OWASP Top 10:2025 (10/10 passive gates)</strong>, active 2026 CVE
-                  signatures (Node2Shell CVE-2026-111497, SonicWall SMA 1000, Cisco ASA CVE-2026-76418, Ivanti CVE-2026-104935),
+                  <strong className="text-white">{SCAN_MEASURED_COUNT} externally measured security controls</strong> mapped to{" "}
+                  <strong className="text-cyan-300">OWASP Top 10:2025 (10/10 passive gates)</strong>, November 2026 CVE
+                  wave signatures (Apache 2.4.71 CVE-2026-119618, Node.js 22.23.5/24.22.3/26.13.1 CVE-2026-111497, React 19.2.9 RSC CVE-2026-126187, Outlook KEV CVE-2026-124194, BookIt CVE-2026-62048, Flowise CVE-2026-40933, PraisonAI CVE-2026-44338, DB-GPT CVE-2026-77932, vLLM CVE-2026-115914, Jenkins CVE-2026-117625, FreeSWITCH CVE-2026-116779),
                   Anti-SSRF IPv4/IPv6 pinning, Weaponized PDF CDR inspection, x402 Counterparty Trust Receipts (<code className="text-cyan-300 font-mono">/api/v2/trust-receipt</code>),
-                  and our viral CLI (<code className="text-emerald-300 font-mono">npx @stealthmark/cli doctor</code> &amp; <code className="text-emerald-300 font-mono">pdf-check</code>).
+                  and our viral CLI (<code className="text-emerald-300 font-mono">npx @stealthmark/cli doctor</code> &amp; <code className="text-emerald-300 font-mono">pdf-check</code>). {SCAN_COVERAGE}.
                 </p>
               </div>
 
@@ -300,7 +303,8 @@ export default function DocsPage() {
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Blocks <code className="text-rose-300 font-mono">/.env</code>, <code className="text-rose-300 font-mono">/.git</code>,
-                    PHP CGI injection, oversized Brotli payloads (<strong className="text-white">CVE-2026-111497</strong>),
+                    PHP CGI injection, Apache HTTP/2 streams (<strong className="text-white">CVE-2026-119618</strong>), oversized Brotli payloads (<strong className="text-white">CVE-2026-111497</strong>),
+                    React RSC prototype injection (<strong className="text-white">CVE-2026-126187</strong>), unauthenticated agent endpoints (Flowise, PraisonAI, DB-GPT, vLLM),
                     and Next.js subrequest header spoofing at the edge.
                   </p>
                 </div>
@@ -346,18 +350,23 @@ export default function DocsPage() {
                       <strong className="text-emerald-300">{FIX_PACK.starterPriceLabel} USD</strong> one-time per domain).
                     </p>
                   </div>
-                  <Link href="/scan">
-                    <Button variant="gradient" size="sm" className="text-xs font-bold cursor-pointer">
-                      <Zap className="w-3.5 h-3.5 mr-1.5" />
-                      <span>Scan Domain &amp; Unlock ({FIX_PACK.starterPriceLabel})</span>
-                    </Button>
+                  <Link
+                    href="/scan"
+                    className={buttonVariants({
+                      variant: "gradient",
+                      size: "sm",
+                      className: "text-xs font-bold cursor-pointer whitespace-nowrap shrink-0",
+                    })}
+                  >
+                    <Zap className="w-3.5 h-3.5 mr-1.5 inline" />
+                    <span>Scan Domain &amp; Unlock ({FIX_PACK.starterPriceLabel})</span>
                   </Link>
                 </div>
               </div>
             </article>
           )}
 
-          {/* Section: 60-Point Control Matrix & CVEs */}
+          {/* Section: Control Matrix & CVEs */}
           {activeSection === "controls" && (
             <article className="space-y-6 animate-in fade-in">
               <div>
@@ -374,7 +383,7 @@ export default function DocsPage() {
                 <div className="p-5 rounded-2xl border border-white/10 bg-[#0b0d13]/85 space-y-2">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white">Pillar 01 · Infrastructure, Ports, TLS &amp; DNS</h3>
-                    <Badge variant="info">14 Controls</Badge>
+                    <Badge variant="info">25 Controls</Badge>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     HTTPS enforcement, HTTP-to-HTTPS redirect chain, TLS 1.2/1.3 negotiation, certificate expiration
@@ -385,21 +394,21 @@ export default function DocsPage() {
                 <div className="p-5 rounded-2xl border border-white/10 bg-[#0b0d13]/85 space-y-2">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white">Pillar 02 · Web Application, Secrets &amp; 2026 CVE Guard</h3>
-                    <Badge variant="info">24 Controls</Badge>
+                    <Badge variant="info">59 Controls</Badge>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Content-Security-Policy (<code className="font-mono text-cyan-300">script-src</code> nonce/hash vs{" "}
                     <code className="font-mono text-amber-300">unsafe-inline</code>), X-Frame-Options /{" "}
                     <code className="font-mono text-cyan-300">frame-ancestors</code>, X-Content-Type-Options{" "}
                     <code className="font-mono text-cyan-300">nosniff</code>, Referrer-Policy, Permissions-Policy (<code className="font-mono text-cyan-300">clipboard-read=()</code>, <code className="font-mono text-cyan-300">publickey-credentials-get=(self)</code>),
-                    COOP/CORP/COEP isolation, CORS wildcard reflection, Cookie <code className="font-mono text-cyan-300">__Host-; Secure; HttpOnly; SameSite</code>, Server/X-Powered-By version banners, exposed <code className="font-mono text-rose-300">/.env</code> &amp; <code className="font-mono text-rose-300">/.git/HEAD</code>, exposed production sourcemaps, client JS bundle secret scanning, and 2026 CVE signatures (<strong className="text-white">CVE-2026-111497</strong> Brotli OOB write, <strong className="text-white">CVE-2026-93680</strong> runtime RCE, <strong className="text-white">CVE-2026-34197</strong> Apache ActiveMQ).
+                    COOP/CORP isolation, CORS wildcard reflection, Cookie <code className="font-mono text-cyan-300">__Host-; Secure; HttpOnly; SameSite</code>, Server/X-Powered-By version banners, exposed <code className="font-mono text-rose-300">/.env</code> &amp; <code className="font-mono text-rose-300">/.git/HEAD</code>, exposed production sourcemaps, client JS bundle secret scanning, and November 2026 CVE signatures (Apache 2.4.71 <strong className="text-white">CVE-2026-119618</strong>, Node.js <strong className="text-white">CVE-2026-111497</strong>, React 19.2.9 RSC <strong className="text-white">CVE-2026-126187</strong>, BookIt <strong className="text-white">CVE-2026-62048</strong>, Flowise <strong className="text-white">CVE-2026-40933</strong>, PraisonAI <strong className="text-white">CVE-2026-44338</strong>, DB-GPT <strong className="text-white">CVE-2026-77932</strong>, vLLM <strong className="text-white">CVE-2026-115914</strong>, Jenkins <strong className="text-white">CVE-2026-117625</strong>, and FreeSWITCH <strong className="text-white">CVE-2026-116779</strong>).
                   </p>
                 </div>
 
                 <div className="p-5 rounded-2xl border border-white/10 bg-[#0b0d13]/85 space-y-2">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white">Pillar 03 · AI Agent Surface, MCP &amp; Discovery Governance</h3>
-                    <Badge variant="info">7 Controls</Badge>
+                    <Badge variant="info">32 Controls</Badge>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     <code className="font-mono text-cyan-300">/robots.txt</code> AI crawler directives (GPTBot,
@@ -427,8 +436,8 @@ export default function DocsPage() {
                 </p>
               </div>
 
-              <div className="border border-white/10 rounded-2xl overflow-hidden bg-[#0b0d13]/80">
-                <table className="w-full text-left text-xs">
+              <div className="rounded-2xl border border-white/10 bg-[#0b0d13]/80 overflow-x-auto">
+                <table className="w-full min-w-[540px] text-left text-xs">
                   <thead className="bg-[#10141f] text-slate-400 font-mono border-b border-white/10">
                     <tr>
                       <th className="p-3">OWASP 2025 Gate</th>
@@ -485,7 +494,7 @@ export default function DocsPage() {
                     <tr>
                       <td className="p-3 font-mono text-cyan-300 font-bold">A10:2025</td>
                       <td className="p-3 font-semibold text-white">Mishandling of Exceptional Conditions</td>
-                      <td className="p-3">CVE-2026-111497 Brotli decompression bounds, stack-trace leakage on 404/500</td>
+                      <td className="p-3">Apache HTTP/2 CVE-2026-119618, Node.js CVE-2026-111497 Brotli bounds, React RSC CVE-2026-126187, Outlook KEV CVE-2026-124194, agent runtime CVEs (Flowise, PraisonAI, DB-GPT, vLLM), and stack-trace leakage on 404/500</td>
                     </tr>
                   </tbody>
                 </table>
@@ -507,30 +516,30 @@ export default function DocsPage() {
               </div>
 
               <div className="divide-y divide-white/10 border border-white/10 rounded-2xl overflow-hidden bg-[#0b0d13]/80">
-                <div className="p-3.5 flex items-center justify-between text-xs font-mono">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-bold">GET</span>
-                    <span className="text-white">/api/scan/audit?domain=&lt;hostname&gt;</span>
+                <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-bold shrink-0">GET</span>
+                    <span className="text-white break-all">/api/scan/audit?domain=&lt;hostname&gt;</span>
                   </div>
-                  <span className="text-slate-400 font-sans text-[11px]">Runs the {SCAN_CHECK_COUNT}-point passive audit and returns JSON report</span>
+                  <span className="text-slate-400 font-sans text-[11px] sm:text-right">Runs the {SCAN_CHECK_COUNT}-point passive audit and returns JSON report</span>
                 </div>
-                <div className="p-3.5 flex items-center justify-between text-xs font-mono">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">CLI v5.1</span>
-                    <span className="text-white">npx @stealthmark/cli doctor &amp; npx @stealthmark/cli pdf-check &lt;file.pdf&gt;</span>
+                <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold shrink-0">CLI v5.1</span>
+                    <span className="text-white break-all">npx @stealthmark/cli doctor &amp; npx @stealthmark/cli pdf-check &lt;file.pdf&gt;</span>
                   </div>
-                  <span className="text-slate-400 font-sans text-[11px]">Audits Node2Shell, Linux SUID GTFOBins, TeamViewer &amp; Weaponized PDFs</span>
+                  <span className="text-slate-400 font-sans text-[11px] sm:text-right">Audits Node2Shell, Linux SUID GTFOBins, TeamViewer &amp; Weaponized PDFs</span>
                 </div>
-                <div className="p-3.5 flex items-center justify-between text-xs font-mono">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-bold">x402</span>
-                    <span className="text-white">/api/v2/trust-receipt?domain=&lt;hostname&gt;</span>
+                <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-bold shrink-0">x402</span>
+                    <span className="text-white break-all">/api/v2/trust-receipt?domain=&lt;hostname&gt;</span>
                   </div>
-                  <span className="text-slate-400 font-sans text-[11px]">Issues HMAC-SHA256 Counterparty Security Trust Receipt (x402 v1)</span>
+                  <span className="text-slate-400 font-sans text-[11px] sm:text-right">Issues HMAC-SHA256 Counterparty Security Trust Receipt (x402 v1)</span>
                 </div>
               </div>
 
-              <CodeBlock code={AUDIT_CURL} language="bash" title="Query Live 60-Point Audit" />
+              <CodeBlock code={AUDIT_CURL} language="bash" title={`Query Live ${SCAN_CHECK_COUNT}-Point Audit`} />
               <CodeBlock code={AUDIT_RESPONSE} language="json" title="Summary Response (JSON)" />
             </article>
           )}
@@ -549,8 +558,8 @@ export default function DocsPage() {
                 </p>
               </div>
 
-              <div className="border border-white/10 rounded-2xl overflow-hidden bg-[#0b0d13]/80">
-                <table className="w-full text-left text-xs">
+              <div className="rounded-2xl border border-white/10 bg-[#0b0d13]/80 overflow-x-auto">
+                <table className="w-full min-w-[540px] text-left text-xs">
                   <thead className="bg-[#10141f] text-slate-400 font-mono border-b border-white/10">
                     <tr>
                       <th className="p-3">Tier</th>

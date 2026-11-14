@@ -10,6 +10,7 @@ import { FloatingDonateButton } from '@/components/scan/FloatingDonateButton';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { ORGANIZATION_JSON_LD } from '@/lib/site';
 import { FIX_PACK } from '@/lib/offer';
+import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
 import './globals.css';
 
 const inter = Inter({
@@ -32,9 +33,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://stealthmark.io'),
-  title: 'StealthMark v2.0 — 60-Point Passive Cybersecurity, Anti-AiTM & Client RASP Engine',
+  title: `StealthMark v6 — ${SCAN_CHECK_COUNT}-Point Passive Cybersecurity, Anti-AiTM & Client RASP Engine`,
   description:
-    'Audit any public domain across 60 passive cybersecurity, TLS/DNS, Anti-AiTM, Client-Side RASP, exposed JS bundle secret, runtime CVE (CVE-2026-111497), and OWASP Top 10:2025 checks in seconds.',
+    `Audit any public domain across ${SCAN_CHECK_COUNT} passive cybersecurity, TLS/DNS, Anti-AiTM, Client-Side RASP, exposed JS bundle secret, Apache HTTP/2 CVE-2026-119618, Node.js CVE-2026-111497, and OWASP Top 10:2025 checks in seconds.`,
   keywords: [
     'external attack surface management',
     'passive domain security scanner',
@@ -52,16 +53,16 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://stealthmark.io',
-    title: 'StealthMark v2.0 — Stop AI Phishing, Session Hijacking & Edge Exploits in 60s',
+    title: 'StealthMark v6 — Stop AI Phishing, Session Hijacking & Edge Exploits in 60s',
     description:
-      `Run a free 60-point passive cybersecurity & OWASP Top 10:2025 audit on any domain in seconds. The ${FIX_PACK.label} (Cloudflare Worker v2 with JA4 Binding, Client RASP & CSP nonce remediation) is ${FIX_PACK.starterPriceLabel} one-time per domain.`,
+      `Run a free ${SCAN_CHECK_COUNT}-point passive cybersecurity & OWASP Top 10:2025 audit on any domain in seconds. The ${FIX_PACK.label} (Cloudflare Worker v2 with JA4 Binding, Client RASP & CSP nonce remediation) is ${FIX_PACK.starterPriceLabel} one-time per domain.`,
     siteName: 'StealthMark',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'StealthMark v2.0 — 60-Point Passive Cybersecurity & Active RASP Shield',
+    title: `StealthMark v6 — ${SCAN_CHECK_COUNT}-Point Passive Cybersecurity & Active RASP Shield`,
     description:
-      'Audit any domain across 60 passive TLS/DNS, Anti-AiTM, Shodan InternetDB CVE, exposed JS secret, and OWASP Top 10:2025 controls in seconds.',
+      `Audit any domain across ${SCAN_CHECK_COUNT} passive TLS/DNS, Anti-AiTM, Shodan InternetDB CVE, exposed JS secret, and OWASP Top 10:2025 controls in seconds.`,
   },
   icons: {
     icon: [
@@ -102,8 +103,12 @@ export default async function RootLayout({
           </LanguageProvider>
         </AuthProvider>
         <FloatingDonateButton />
-        <Analytics />
-        <SpeedInsights />
+        {Boolean(process.env.VERCEL) && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
         {gaId && (
           <>
             <Script

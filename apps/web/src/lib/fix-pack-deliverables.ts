@@ -1,6 +1,8 @@
 import { FIX_PACK } from '@/lib/offer';
+import { signBadge } from '@/lib/scan-unlock';
+import { CLOUDFLARE_WAF_RULE } from '@/lib/waf-constants';
 
-export const CLOUDFLARE_WAF_RULE = `(http.request.uri.path contains "/.env") or (http.request.uri.path contains "/.git") or (http.request.uri.path contains "/_next/mcp") or (http.request.uri.path contains "/actuator/env") or (http.request.uri.path contains "eval-stdin.php") or (http.request.uri.path contains "/+CSCOE+/") or (http.request.uri.path contains "/dana-na/") or (http.request.uri.path contains "/amc/") or (http.request.uri.path contains "/__api__/") or (http.request.uri.query contains "169.254.169.254") or (http.request.uri.query contains "metadata.google.internal") or (http.request.uri.query contains "fd00:ec2::254") or (http.request.uri.query contains "allow_url_include") or (http.request.uri.query contains "auto_prepend_file") or (http.user_agent contains "zgrab") or (http.user_agent contains "nuclei") or (http.user_agent contains "masscan") or (http.user_agent contains "evilginx") or (http.user_agent contains "modlishka") or (http.request.uri.path contains "/xmlrpc.php" and not http.request.uri.path contains "/wc-api/" and not http.request.uri.path contains "/wp-json/stripe/" and not http.request.uri.path contains "/webhook")`;
+export { CLOUDFLARE_WAF_RULE };
 
 /** A fresh random secret per download: a fallback anyone can recompute from the domain makes the worker's signatures forgeable. */
 function randomFallbackSecret(): string {
@@ -453,4 +455,19 @@ export function buildLiveBadgeSnippet(domain: string): string {
 <a href="https://stealthmark.io/verify/${domain}?utm_source=trust_badge" target="_blank" rel="noopener noreferrer" title="Verify Real-Time Security Posture on StealthMark">
   <img src="https://stealthmark.io/api/badge/${domain}.svg" alt="StealthMark Security Posture - Verified" width="256" height="32" loading="lazy" />
 </a>`;
+}
+
+export function buildFixPackDeliverables(domain: string) {
+  const badgeSig = signBadge(domain, 'A+', 98);
+  const badgeUrl = `https://stealthmark.io/api/badge/${encodeURIComponent(domain)}.svg${
+    badgeSig ? `?sig=${badgeSig}` : ''
+  }`;
+  return {
+    cloudflare_visual_waf_rule: CLOUDFLARE_WAF_RULE,
+    cloudflare_worker_code: buildEdgeWorker(domain),
+    client_rasp_shield_js: buildClientRaspShield(domain),
+    live_badge_html: `<a href="https://stealthmark.io/verify/${encodeURIComponent(
+      domain
+    )}?utm_source=trust_badge" target="_blank" rel="noopener"><img src="${badgeUrl}" alt="StealthMark Verified Perimeter" height="28" /></a>`,
+  };
 }

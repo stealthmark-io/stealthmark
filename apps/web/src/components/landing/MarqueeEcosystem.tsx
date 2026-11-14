@@ -2,6 +2,7 @@
 
 import React from "react";
 import { IntegrationIcon } from "@/components/IntegrationIcon";
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT } from "@/lib/readiness-report";
 
 export function MarqueeEcosystem() {
   const standards = [
@@ -28,13 +29,13 @@ export function MarqueeEcosystem() {
     <section id="ecosystem" className="py-14 space-y-6 overflow-hidden max-w-7xl mx-auto">
       <div className="text-center space-y-2 px-4">
         <div className="text-xs font-mono font-semibold tracking-widest text-cyan-400 uppercase">
-          60-POINT COVERAGE · EDGE WAF · AI CRAWLER GOVERNANCE
+          {SCAN_CHECK_COUNT}-POINT COVERAGE · EDGE WAF · AI CRAWLER GOVERNANCE
         </div>
         <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
           Built for modern cloud perimeters, edge proxies, and production stacks
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto">
-          Every scan inspects 60 non-intrusive controls across TLS 1.3, DNS records, Shodan open ports, exposed JS secrets, runtime CVEs, and automated AI crawlers—generating drop-in remediation code for your stack.
+          Every scan measures {SCAN_MEASURED_COUNT} non-intrusive controls from outside across TLS 1.3, DNS records, Shodan open ports, exposed JS secrets, runtime CVEs, and automated AI crawlers—generating drop-in remediation code for your stack.
         </p>
       </div>
 

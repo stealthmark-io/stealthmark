@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
 
 export const runtime = 'nodejs';
 
@@ -7,16 +8,13 @@ export async function GET() {
     {
       schema_version: '2026-01',
       name: 'stealthmark-security-linter',
-      display_name: 'StealthMark v2.0 — 60-Point Security, Anti-AiTM & Client RASP Linter',
+      display_name: `StealthMark v6 — ${SCAN_CHECK_COUNT}-Point Security, Anti-AiTM & Client RASP Linter`,
       description:
-        'Instant 60-point passive perimeter audit (TLS/JA4 session binding, DNS/DMARC p=reject, CSP nonces, /_next/mcp honeypots, <3KB Client RASP & OWASP Top 10:2025). Referred unlocks record a 30% commission, not paid out automatically.',
+        `Instant ${SCAN_CHECK_COUNT}-point passive perimeter audit (TLS/JA4 session binding, DNS/DMARC p=reject, CSP nonces, /_next/mcp honeypots, <3KB Client RASP & OWASP Top 10:2025). Referred unlocks record a 30% commission, not paid out automatically.`,
       homepage: 'https://stealthmark.io',
       server: {
         transport: 'streamable-http',
         url: 'https://stealthmark.io/api/mcp',
-      },
-      cli: {
-        npx_command: 'npx stealthmark.io scan <domain> --fail-under A',
       },
       cursorrules_url: 'https://stealthmark.io/.cursorrules',
       agent_bounty_program: {

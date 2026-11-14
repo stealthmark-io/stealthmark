@@ -5,4 +5,4 @@ Expires: 2027-10-31T00:00:00.000Z
 Preferred-Languages: en, es, pt
 Canonical: https://stealthmark.io/.well-known/security.txt
 Policy: https://stealthmark.io/trust
-# StealthMark: free 60-point passive audit at https://stealthmark.io/scan
+# StealthMark: free 116-point passive audit (116 controls: 88 measured from outside, 28 need internal access) at https://stealthmark.io/scan

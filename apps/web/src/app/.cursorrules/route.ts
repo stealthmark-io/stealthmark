@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { DONATION_OPTIONS, FIX_PACK, FREE_SCANS_PER_DOMAIN, UNLOCK_DAYS } from '@/lib/offer';
+import { SCAN_CHECK_COUNT, SCAN_COVERAGE } from '@/lib/readiness-report';
 
 export const runtime = 'nodejs';
 
-const CURSOR_RULES_CONTENT = `# StealthMark v2.0 — 60-Point DevSecOps, Anti-AiTM & Client RASP Rules (.cursorrules)
+const CURSOR_RULES_CONTENT = `# StealthMark v6 — ${SCAN_CHECK_COUNT}-Point DevSecOps, Anti-AiTM & Client RASP Rules (.cursorrules)
 # Place in your project root or load via Cursor / Claude Code / Windsurf
 
 ## 1. Pre-Deploy Security Gate (Mandatory before production release)
-- Always run \`npx stealthmark.io scan <your-domain> --fail-under A\` or query \`https://stealthmark.io/api/scan/audit?domain=<your-domain>\` before approving a production deployment.
-- Verify all 60 passive controls across:
+- Always query \`https://stealthmark.io/api/scan/audit?domain=<your-domain>\` before approving a production deployment.
+- Review the audit's ${SCAN_COVERAGE}. The measured controls cover:
   1) Transport & JA4 TLS Session Cookie Binding (blocks Evilginx2 / Modlishka AiTM MFA relay)
   2) Strict DNS & Mail Identity (\`_dmarc\` with \`p=reject; sp=reject; adkim=s; aspf=s\`, \`SPF -all\`, \`CAA\`, \`_smtp._tls\`)
   3) Defensive HTTP Headers (per-request CSP nonce + \`strict-dynamic\`, \`form-action 'self'\`, \`Permissions-Policy: clipboard-read=(), camera=(), microphone=()\`)

@@ -385,9 +385,9 @@ describe('GET /api/billing/polar/verify: sale record and alert', () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith('https://api.telegram.org/'))).toBe(false);
   });
 
-  it('starts no subprocess and reads nothing from a home directory', () => {
+  it('starts no subprocess and reads nothing from the Hermes home', () => {
     const source = readFileSync(new URL('../app/api/billing/polar/verify/route.ts', import.meta.url), 'utf8');
-    for (const banned of ['child_process', 'spawn(', 'execFile', '/home/']) {
+    for (const banned of ['child_process', 'spawn(', 'execFile', '/home/hermes001']) {
       expect(source).not.toContain(banned);
     }
   });

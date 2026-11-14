@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Globe, Search, Mail, CheckCircle2 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
-import { SCAN_CHECK_COUNT } from "@/lib/readiness-report";
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT, SCAN_NOT_ASSESSED_COUNT } from "@/lib/readiness-report";
 import { FIX_PACK } from "@/lib/offer";
 
 interface SamplePreview {
@@ -21,16 +21,18 @@ interface SamplePreview {
 const SAMPLE_PREVIEWS: Record<string, SamplePreview> = {
   "stealthmark.io": {
     domain: "stealthmark.io",
+    // Counts from a live 116-point scan of stealthmark.io: 67 pass, 0 warn, 0 fail, 16 info, 34 not assessed from outside.
+    // Measure them again when the scoring or the site's headers change.
     grade: "A+",
     score: 100,
-    passCount: 60,
+    passCount: 67,
     warnCount: 0,
     failCount: 0,
     highlights: [
-      "Per-request CSP nonce + JA4 TLS Session Cookie Binding",
-      "Client-Side RASP (<3KB) Anti-Cloning & Autofill Trap Guard active",
-      "0 exposed Shodan database/RDP ports · /_next/mcp locked",
-      "10/10 OWASP Top 10:2025 gates & 60/60 v2.0 checks verified",
+      "CSP nonce/hash-only scripts + form-action lock",
+      "HSTS preload · HTTPS redirect · enforced DMARC",
+      "/_next/mcp closed · /.env and /.git answer 403",
+      "COOP/CORP same-origin · 16 info · 34 not assessed",
     ],
   },
   "openai.com": {
@@ -44,7 +46,7 @@ const SAMPLE_PREVIEWS: Record<string, SamplePreview> = {
       "Cloudflare Edge TLS 1.3 + HSTS enforced + SPF/DMARC active",
       "Missing Clipboard-Read Lock & Reporting-Endpoints telemetry",
       "AI agent surface & robots.txt policy rules verified",
-      "Run live 60-point audit to inspect full header & RASP posture",
+      `Run live ${SCAN_CHECK_COUNT}-point audit to inspect full header & RASP posture`,
     ],
   },
   "anthropic.com": {
@@ -58,7 +60,7 @@ const SAMPLE_PREVIEWS: Record<string, SamplePreview> = {
       "Strict HTTPS transport + DNS CAA & DMARC enforcement",
       "Clean frontend JS bundles · 0 exposed Shodan infrastructure ports",
       "Missing CSP form-action lock & Client-Side Autofill RASP headers",
-      "Run live 60-point audit to inspect full header & RASP posture",
+      `Run live ${SCAN_CHECK_COUNT}-point audit to inspect full header & RASP posture`,
     ],
   },
   "google.com": {
@@ -72,55 +74,55 @@ const SAMPLE_PREVIEWS: Record<string, SamplePreview> = {
       "Global TLS 1.3 + CAA (pki.goog) + strict SPF/DMARC enforcement",
       "0 exposed management ports · hardened origin edge posture",
       "Custom framing & cross-origin policy headers detected",
-      "Run live 60-point audit to inspect full header & RASP posture",
+      `Run live ${SCAN_CHECK_COUNT}-point audit to inspect full header & RASP posture`,
     ],
   },
 };
 
 const HERO_COPY = {
   en: {
-    pill: `STEALTHMARK v5.1 · ${SCAN_CHECK_COUNT}-POINT RECON + PDF CDR, ANTI-SSRF & RASP ENGINE`,
+    pill: `STEALTHMARK v6 · ${SCAN_CHECK_COUNT}-POINT RECON + PDF CDR, ANTI-SSRF & RASP ENGINE`,
     h1Part1: "Stop AI Phishing, Weaponized PDFs, SSRF,",
     h1Part2: "and 48h VPN Exploits in 60 Seconds.",
-    desc: `Audit any domain across ${SCAN_CHECK_COUNT} passive controls—then deploy our Cloudflare Edge Shield v5.1 (JA4 Binding, Node2Shell Brotli Guard, Weaponized PDF CDR, Anti-SSRF IPv4/IPv6 & SonicWall/Cisco/Ivanti Gate) + <3KB Client RASP (${FIX_PACK.label}: ${FIX_PACK.starterPriceLabel} one-time per domain).`,
-    ctaPrimary: `Run Free ${SCAN_CHECK_COUNT}-Point v5.1 Audit`,
+    desc: `Audit any domain across ${SCAN_CHECK_COUNT} passive controls (${SCAN_MEASURED_COUNT} measured from outside, ${SCAN_NOT_ASSESSED_COUNT} need internal access)—then deploy our Cloudflare Edge Shield v5.1 (JA4 Binding, Node2Shell Brotli Guard, Weaponized PDF CDR, Anti-SSRF IPv4/IPv6 & SonicWall/Cisco/Ivanti Gate) + <3KB Client RASP (${FIX_PACK.label}: ${FIX_PACK.starterPriceLabel} one-time per domain).`,
+    ctaPrimary: `Run Free ${SCAN_CHECK_COUNT}-Point v6 Audit`,
     ctaSecondary: "Contact Security Engineering",
-    placeholder: "Enter domain to audit (e.g. yourcompany.com)",
-    btnAudit: `Run ${SCAN_CHECK_COUNT}-Point v5.1 Scan`,
+    placeholder: "Enter domain (e.g. yourcompany.com)",
+    btnAudit: `Run ${SCAN_CHECK_COUNT}-Point v6 Scan`,
     pills: [
-      { title: "v5.1 Passive Recon", desc: `${SCAN_CHECK_COUNT} checks across TLS, DNS, MCP, SSRF & OWASP 2025` },
+      { title: "v6 Passive Recon", desc: `${SCAN_MEASURED_COUNT} checks across TLS, DNS, MCP, SSRF & OWASP 2025` },
       { title: "Edge Worker v5.1", desc: "JA4 Binding, Node2Shell, SonicWall/Cisco Gate & Anti-SSRF" },
       { title: "Weaponized PDF CDR", desc: "Blocks /JavaScript, /Launch & AI Prompt Injection in CVs" },
       { title: "Client RASP + CLI v5.1", desc: "<3KB Browser Shield + npx stealthmark doctor & pdf-check" },
     ],
   },
   es: {
-    pill: `STEALTHMARK v5.1 · MOTOR DE ${SCAN_CHECK_COUNT} CONTROLES + PDF CDR, ANTI-SSRF & CLIENT RASP`,
+    pill: `STEALTHMARK v6 · MOTOR DE ${SCAN_CHECK_COUNT} CONTROLES + PDF CDR, ANTI-SSRF & CLIENT RASP`,
     h1Part1: "Frená Phishing AiTM, PDFs Maliciosos, SSRF",
     h1Part2: "y Exploits VPN de 48h en 60 Segundos.",
-    desc: `Auditá cualquier dominio en ${SCAN_CHECK_COUNT} controles pasivos y desplegá el Cloudflare Worker v5.1 (JA4 Binding, Anti-Node2Shell, Inspector CDR de PDFs, Anti-SSRF IPv4/IPv6 y Escudo SonicWall/Cisco/Ivanti) + Client RASP <3KB (${FIX_PACK.label}: ${FIX_PACK.starterPriceLabel} pago único por dominio).`,
-    ctaPrimary: `Correr Auditoría Gratis v5.1 (${SCAN_CHECK_COUNT} Puntos)`,
+    desc: `Auditá cualquier dominio en ${SCAN_CHECK_COUNT} controles (${SCAN_MEASURED_COUNT} medidos desde afuera, ${SCAN_NOT_ASSESSED_COUNT} requieren acceso interno) y desplegá el Cloudflare Worker v5.1 (JA4 Binding, Anti-Node2Shell, Inspector CDR de PDFs, Anti-SSRF IPv4/IPv6 y Escudo SonicWall/Cisco/Ivanti) + Client RASP <3KB (${FIX_PACK.label}: ${FIX_PACK.starterPriceLabel} pago único por dominio).`,
+    ctaPrimary: `Correr Auditoría Gratis v6 (${SCAN_CHECK_COUNT} Puntos)`,
     ctaSecondary: "Contactar Ingeniería de Seguridad",
-    placeholder: "Ingresá el dominio a auditar (ej. tuempresa.com)",
-    btnAudit: `Auditar v5.1 (${SCAN_CHECK_COUNT} Puntos)`,
+    placeholder: "Tu dominio (ej. tuempresa.com)",
+    btnAudit: `Auditar v6 (${SCAN_CHECK_COUNT} Puntos)`,
     pills: [
-      { title: "Recon v5.1", desc: `${SCAN_CHECK_COUNT} chequeos en TLS, DNS, /_next/mcp, SSRF y OWASP 2025` },
+      { title: "Recon v6", desc: `${SCAN_MEASURED_COUNT} chequeos en TLS, DNS, /_next/mcp, SSRF y OWASP 2025` },
       { title: "Worker v5.1 Activo", desc: "JA4 Binding, Node2Shell, SonicWall/Cisco Gate y Anti-SSRF" },
       { title: "Inspector PDF CDR", desc: "Bloquea /JavaScript, /Launch e Inyección de Prompts en CVs" },
       { title: "RASP + CLI v5.1", desc: "<3KB Browser Shield + npx stealthmark doctor & pdf-check" },
     ],
   },
   pt: {
-    pill: `STEALTHMARK v5.1 · MOTOR DE ${SCAN_CHECK_COUNT} CONTROLES + PDF CDR, ANTI-SSRF & CLIENT RASP`,
+    pill: `STEALTHMARK v6 · MOTOR DE ${SCAN_CHECK_COUNT} CONTROLES + PDF CDR, ANTI-SSRF & CLIENT RASP`,
     h1Part1: "Bloqueie Phishing AiTM, PDFs Maliciosos, SSRF",
     h1Part2: "e Exploits VPN de 48h em 60 Segundos.",
-    desc: `Audite qualquer domínio em ${SCAN_CHECK_COUNT} controles passivos e implante o Cloudflare Worker v5.1 (JA4 Binding, Anti-Node2Shell, PDF CDR, Anti-SSRF IPv4/IPv6 e Escudo SonicWall/Cisco/Ivanti) + Client RASP <3KB (${FIX_PACK.label}: ${FIX_PACK.starterPriceLabel} pagamento único por domínio).`,
-    ctaPrimary: `Rodar Auditoria Grátis v5.1 (${SCAN_CHECK_COUNT} Pontos)`,
+    desc: `Audite qualquer domínio em ${SCAN_CHECK_COUNT} controles (${SCAN_MEASURED_COUNT} medidos de fora, ${SCAN_NOT_ASSESSED_COUNT} exigem acesso interno) e implante o Cloudflare Worker v5.1 (JA4 Binding, Anti-Node2Shell, PDF CDR, Anti-SSRF IPv4/IPv6 e Escudo SonicWall/Cisco/Ivanti) + Client RASP <3KB (${FIX_PACK.label}: ${FIX_PACK.starterPriceLabel} pagamento único por domínio).`,
+    ctaPrimary: `Rodar Auditoria Grátis v6 (${SCAN_CHECK_COUNT} Pontos)`,
     ctaSecondary: "Falar com Engenharia de Segurança",
-    placeholder: "Digite o domínio para auditar (ex. suaempresa.com)",
-    btnAudit: `Auditar v5.1 (${SCAN_CHECK_COUNT} Pontos)`,
+    placeholder: "Seu domínio (ex. suaempresa.com)",
+    btnAudit: `Auditar v6 (${SCAN_CHECK_COUNT} Pontos)`,
     pills: [
-      { title: "Recon v5.1", desc: `${SCAN_CHECK_COUNT} checagens em TLS, DNS, /_next/mcp, SSRF e OWASP 2025` },
+      { title: "Recon v6", desc: `${SCAN_MEASURED_COUNT} checagens em TLS, DNS, /_next/mcp, SSRF e OWASP 2025` },
       { title: "Worker v5.1 Ativo", desc: "JA4 Binding, Node2Shell, SonicWall/Cisco Gate e Anti-SSRF" },
       { title: "Inspetor PDF CDR", desc: "Bloqueia /JavaScript, /Launch e Prompt Injection em CVs" },
       { title: "RASP + CLI v5.1", desc: "<3KB Browser Shield + npx stealthmark doctor & pdf-check" },
@@ -239,11 +241,11 @@ export function CybersecurityHero() {
                 {activePreview.passCount} PASS · {activePreview.warnCount} WARN · {activePreview.failCount} FAIL
               </span>
             </div>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-300">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] text-slate-300 min-w-0">
               {activePreview.highlights.map((h) => (
-                <li key={h} className="flex items-center gap-1.5 truncate">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                  <span className="truncate">{h}</span>
+                <li key={h} className="flex items-start gap-1.5 min-w-0">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                  <span className="min-w-0 break-words">{h}</span>
                 </li>
               ))}
             </ul>

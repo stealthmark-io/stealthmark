@@ -56,15 +56,15 @@ const SCENARIOS: Record<ScenarioKey, ScenarioInfo> = {
     badge: 'Scenario 01 · Subscription SaaS',
     badgeColor: 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10',
     title: 'Autonomous Subscription & Onboarding',
-    clientExample: 'Example: DemoDental Smile / DemoCV / B2B SaaS',
+    clientExample: 'Example: AtlantikAI Smile / ATSify / B2B SaaS',
     tagline: 'Agents discover tiers, execute trials, and self-subscribe in under 10 milliseconds.',
     painPoint: 'Without StealthMark, AI agents cannot sign up or pay. They get blocked by client-side SPAs, cookie banners, and bot challenges, abandoning potential recurring revenue.',
     solution: 'StealthMark delivers an RFC-compliant Action Manifest (/.well-known/agent.json). Agents inspect pricing schemas, verify quotas, and invoke the /agent/v1/subscribe webhook directly.',
     hitlAction: 'Autonomous checkout token generated · Optional enterprise billing manager approval push.',
     phonePushPreview: {
-      app: 'DemoDental Enterprise Desk',
+      app: 'AtlantikAI Enterprise Desk',
       headline: 'Subscription Authorization Request',
-      details: 'Agent AutoDev-001 requested access to Pro Tier (250k transactions/mo).',
+      details: 'Agent Hermes-001 requested access to Pro Tier (250k transactions/mo).',
       amount: '$80.00 USD',
       buttonText: 'Approve via FaceID'
     },
@@ -112,13 +112,13 @@ const SCENARIOS: Record<ScenarioKey, ScenarioInfo> = {
     badge: 'Scenario 03 · Ticketing & High-Concurrency Events',
     badgeColor: 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10',
     title: 'Anti-Scalping Virtual Queue & High-Volume Ticketing',
-    clientExample: 'Example: DemoTickets / Concert & Stadium Ticketing',
+    clientExample: 'Example: Deportick / Concert & Stadium Ticketing',
     tagline: '1 Verified Agent = 1 Real Human Identity. Zero bot farms, zero WAF crashes, ordered checkout.',
     painPoint: 'Ticketing platforms collapse under 500,000 scalper bots spamming F5 refreshes during on-sale drops. Traditional WAFs blindly block real fans with HTTP 403 errors, while bot farms hoard inventory.',
     solution: 'StealthMark replaces chaotic DOM scraping with a Cryptographic KYA Passport (Ed25519) and Silent Socket Queue. Scalper bot farms with forged tokens are dropped in < 1ms at the edge.',
     hitlAction: 'Seats reserved in 9.7ms. One-time biometric checkout link pushed to the verified buyer for immediate card authorization.',
     phonePushPreview: {
-      app: 'DemoTickets Official Queue Gate',
+      app: 'Deportick Official Queue Gate',
       headline: 'Seats Reserved · Position #142',
       details: 'Section 104, Row 12 (Seats 14-15). 7-minute payment window locked for your verified passport.',
       amount: '$140.00 USD (2 Tickets)',
@@ -291,7 +291,7 @@ export default function AgenticBlueprintPage() {
                 <span>01 · Subscription SaaS</span>
               </div>
               <div className="text-sm font-bold text-white mt-1">Instant Onboarding</div>
-              <div className="text-[11px] text-slate-400 mt-0.5">DemoDental &amp; DemoCV model</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">AtlantikAI &amp; ATSify model</div>
             </button>
 
             <button
@@ -323,7 +323,7 @@ export default function AgenticBlueprintPage() {
                 <span>03 · High-Scale Ticketing</span>
               </div>
               <div className="text-sm font-bold text-white mt-1">Anti-Scalper Virtual Queue</div>
-              <div className="text-[11px] text-slate-400 mt-0.5">DemoTickets &amp; Live Nation model</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Deportick &amp; Live Nation model</div>
             </button>
           </div>
         </div>

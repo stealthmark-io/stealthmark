@@ -13,7 +13,7 @@ Accept: text/html,application/xhtml+xml`;
 
   const agentHeaders = `GET / HTTP/2
 Host: gateway.stealthmark.io
-X-Stealthmark-Agent: agent_autodev_001
+X-Stealthmark-Agent: agent_hermes_001
 Accept: application/agent+json`;
 
   const humanOutput = `HTTP/2 200 OK
@@ -24,7 +24,7 @@ X-Stealthmark-Route: PROXY_UPSTREAM_HUMAN
 <!DOCTYPE html>
 <html>
   <head>
-    <title>DemoCV — Deterministic Optimization</title>
+    <title>ATSify AI — Deterministic Optimization</title>
     <!-- 23 React Server Component scripts loaded -->
   </head>
   <body>... [72.5 KB of hydrated HTML, CSS & React bundles loaded in browser] ...</body>
@@ -42,14 +42,14 @@ X-Stealthmark-Compute: 3.2ms
   "trust_score": 98,
   "cluster": "GCP us-central1 (stealthmark-prod)",
   "directory": {
-    "democv": {
-      "name": "DemoCV — Deterministic ATS Optimization",
-      "manifest_url": "/democv/agent/v1/manifest",
+    "atsify": {
+      "name": "ATSify AI — Deterministic ATS Optimization",
+      "manifest_url": "/atsify/agent/v1/manifest",
       "actions": ["audit_cv"]
     },
-    "demodental": {
-      "name": "DemoDental Smile — Cosmetic Dentistry",
-      "manifest_url": "/demodental/agent/v1/manifest",
+    "atlantikai": {
+      "name": "AtlantikAI Smile — Cosmetic Dentistry",
+      "manifest_url": "/atlantikai/agent/v1/manifest",
       "actions": ["get_plans", "generate_simulation"]
     }
   }

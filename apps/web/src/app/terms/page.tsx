@@ -4,11 +4,11 @@ import Link from 'next/link';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { CopyEmail } from '@/components/ui/copy-email';
 import { DONATION_OPTIONS, FIX_PACK, FREE_SCANS_PER_DOMAIN, UNLOCK_DAYS } from '@/lib/offer';
-import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT } from '@/lib/readiness-report';
 
 export const metadata: Metadata = {
   title: 'Terms of Service — StealthMark',
-  description: 'StealthMark Terms of Service for the 60-point passive perimeter scanner, the Fix Pack, and Enterprise Security Assessments.',
+  description: `StealthMark Terms of Service for the ${SCAN_CHECK_COUNT}-point passive perimeter scanner, the Fix Pack, and Enterprise Security Assessments.`,
   alternates: { canonical: '/terms' },
 };
 
@@ -38,14 +38,14 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-white">1. Agreement to Terms</h2>
             <p>
-              By accessing or using the StealthMark v5.1 {SCAN_CHECK_COUNT}-point passive perimeter scanner, the Fix Pack (Cloudflare WAF rule, Cloudflare Worker, client-side RASP shield script, live badge snippet and white-label PDF report), CLI (<code className="font-mono text-cyan-300">@stealthmark/cli</code>), or related APIs (collectively, the &quot;Service&quot;), you agree to be bound by these Terms of Service. If you do not agree to all terms, you may not access or use the Service.
+              By accessing or using the StealthMark v6 {SCAN_CHECK_COUNT}-point passive perimeter scanner, the Fix Pack (Cloudflare WAF rule, Cloudflare Worker, client-side RASP shield script, live badge snippet and white-label PDF report), CLI (<code className="font-mono text-cyan-300">@stealthmark/cli</code>), or related APIs (collectively, the &quot;Service&quot;), you agree to be bound by these Terms of Service. If you do not agree to all terms, you may not access or use the Service.
             </p>
           </section>
 
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-white">2. Description of Service</h2>
             <p>
-              StealthMark provides non-intrusive, passive external cybersecurity reconnaissance across {SCAN_CHECK_COUNT} controls (TLS 1.2/1.3, DNS/SPF/DMARC/CAA, Shodan InternetDB passive open ports and CVEs, HTTP security headers, exposed dotfiles, client JS bundle secret patterns, and OWASP Top 10:2025 gates), alongside a one-time per-domain Fix Pack (Cloudflare WAF rule, Cloudflare Worker, client-side RASP shield script, live badge snippet and white-label PDF report). StealthMark performs strictly passive external observations and never executes destructive or intrusive exploitation payloads.
+              StealthMark provides non-intrusive, passive external cybersecurity reconnaissance across {SCAN_MEASURED_COUNT} externally measured controls (TLS 1.2/1.3, DNS/SPF/DMARC/CAA, Shodan InternetDB passive open ports and CVEs, HTTP security headers, exposed dotfiles, client JS bundle secret patterns, and OWASP Top 10:2025 gates), alongside a one-time per-domain Fix Pack (Cloudflare WAF rule, Cloudflare Worker, client-side RASP shield script, live badge snippet and white-label PDF report). StealthMark performs strictly passive external observations and never executes destructive or intrusive exploitation payloads.
             </p>
           </section>
 
@@ -59,7 +59,7 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-white">4. Service Tiers &amp; Billing</h2>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-300">
-              <li><strong>Free {SCAN_CHECK_COUNT}-Point Perimeter Recon ($0):</strong> Evaluates any public domain across {SCAN_CHECK_COUNT} passive controls and displays the Executive Grade (A+ to F), OWASP Top 10:2025 gate status, and the full report with a fix recommendation for every finding, free for the first {FREE_SCANS_PER_DOMAIN} scans of each domain. After {FREE_SCANS_PER_DOMAIN} scans of the same domain, new scan results for that domain lock until the domain is unlocked.</li>
+              <li><strong>Free {SCAN_CHECK_COUNT}-Point Perimeter Recon ($0):</strong> Evaluates any public domain across {SCAN_MEASURED_COUNT} passive controls and displays the Executive Grade (A+ to F), OWASP Top 10:2025 gate status, and the full report with a fix recommendation for every finding, free for the first {FREE_SCANS_PER_DOMAIN} scans of each domain. After {FREE_SCANS_PER_DOMAIN} scans of the same domain, new scan results for that domain lock until the domain is unlocked.</li>
               <li><strong>{FIX_PACK.label}:</strong> {FIX_PACK.starterPriceLabel} USD one-time payment per domain (by card through Polar, or {DONATION_OPTIONS.stablecoinAmount} on-chain) that unlocks the Fix Pack files for that domain (Cloudflare WAF rule, Cloudflare Worker, client-side RASP shield script, live badge snippet and white-label PDF report) and unlimited re-scans of it for {UNLOCK_DAYS} days. It is a one-time purchase with zero recurring subscription.</li>
               <li><strong>Enterprise Security Assessment:</strong> Custom-scoped Red Team reconnaissance, API/Cloud architecture security review, and Blue Team edge WAF hardening under a separate mutual NDA and statement of work, quoted per scope through the <Link href="/enterprise/contact" className="text-cyan-400 hover:underline">enterprise contact form</Link>.</li>
             </ul>

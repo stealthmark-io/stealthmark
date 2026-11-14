@@ -22,9 +22,9 @@ interface FlightPlanData {
 }
 
 const FLIGHT_PLANS: Record<string, FlightPlanData> = {
-  demodental: {
-    domain: 'demodental.example.com',
-    label: 'DemoDental Smile — Cosmetic Dentistry',
+  atlantikai: {
+    domain: 'atlantikai.com',
+    label: 'AtlantikAI Smile — Cosmetic Dentistry',
     routes: [
       { step: 1, action: 'GET_PLANS', path: '/agent/v1/plans', ms: 3.2 },
       { step: 2, action: 'SIMULATE_SMILE', path: '/agent/v1/simulate', requires: ['photo', 'shade'], ms: 8.1 },
@@ -33,9 +33,9 @@ const FLIGHT_PLANS: Record<string, FlightPlanData> = {
     totalMs: 13.7,
     tokensUsed: 182,
   },
-  demotickets: {
-    domain: 'demotickets.example.com',
-    label: 'DemoTickets — Sports Ticketing Platform',
+  deportick: {
+    domain: 'deportick.com',
+    label: 'Deportick — Sports Ticketing Platform',
     routes: [
       { step: 1, action: 'LIST_EVENTS', path: '/agent/v1/events', ms: 2.8 },
       { step: 2, action: 'CHECK_AVAILABILITY', path: '/agent/v1/seats', requires: ['event_id', 'section'], ms: 4.2 },
@@ -44,9 +44,9 @@ const FLIGHT_PLANS: Record<string, FlightPlanData> = {
     totalMs: 13.1,
     tokensUsed: 196,
   },
-  democv: {
-    domain: 'democv.example.com',
-    label: 'DemoCV — Deterministic ATS Optimization',
+  atsify: {
+    domain: 'atsify-ai.com',
+    label: 'ATSify AI — Deterministic ATS Optimization',
     routes: [
       { step: 1, action: 'UPLOAD_CV', path: '/agent/v1/upload', requires: ['cv_pdf'], ms: 5.4 },
       { step: 2, action: 'AUDIT_CV', path: '/agent/v1/audit', ms: 12.3 },

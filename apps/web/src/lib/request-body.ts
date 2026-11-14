@@ -12,19 +12,38 @@ export async function readBodyText(request: Request, maxBytes: number): Promise<
   const decoder = new TextDecoder();
   let received = 0;
   let text = '';
+  let lockReleased = false;
+
+  const releaseReaderLock = () => {
+    if (!lockReleased) {
+      lockReleased = true;
+      try {
+        reader.releaseLock();
+      } catch {
+        // already released or closed
+      }
+    }
+  };
+
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       received += value.byteLength;
       if (received > maxBytes) {
-        await reader.cancel();
+        releaseReaderLock();
+        const contentType = (request.headers.get('content-type') ?? '').toLowerCase();
+        if (!contentType.includes('multipart/form-data')) {
+          await request.body.cancel().catch(() => {});
+        }
         return null;
       }
       text += decoder.decode(value, { stream: true });
     }
   } catch {
     return null;
+  } finally {
+    releaseReaderLock();
   }
   return text + decoder.decode();
 }

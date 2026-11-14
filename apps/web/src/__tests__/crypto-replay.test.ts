@@ -143,6 +143,21 @@ describe('POST /api/billing/crypto/unlock-scan: one transaction, one unlock', ()
     expect(ledger.or).not.toHaveBeenCalled();
   });
 
+  it('returns 503 when verifyCryptoPayment throws an unexpected error', async () => {
+    fakeLedger();
+    vi.spyOn(cryptoVerifier, 'verifyCryptoPayment').mockRejectedValue(new Error('RPC network connection timed out'));
+
+    const res = await unlockScan(unlockRequest(paid));
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.verified).toBe(false);
+    expect(body.error).toBe('verification_unavailable');
+    expect(console.error).toHaveBeenCalledWith(
+      '[Crypto Unlock] verifyCryptoPayment unexpected error:',
+      'RPC network connection timed out'
+    );
+  });
+
   it('records nothing for a transfer below the $0.99 Fix Pack floor', async () => {
     const ledger = fakeLedger();
     paidOnChain(0.98);
@@ -316,6 +331,34 @@ describe('POST /api/v2/trust-receipt: one transaction, one receipt', () => {
 
     expect((await trustReceipt(receiptRequest(paid))).status).toBe(402);
     expect(ledger.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects an on-chain verified payment with amountUsd: 0.99 with HTTP 402, no DB insert, no signature', async () => {
+    const ledger = fakeLedger();
+    const verifier = paidOnChain(0.99);
+
+    const res = await trustReceipt(receiptRequest(paid));
+    const body = await res.json();
+
+    expect(res.status).toBe(402);
+    expect(body.ok).toBe(false);
+    expect(body.error).toContain('9.00');
+    expect(body.signature).toBeUndefined();
+    expect(verifier).toHaveBeenCalledWith('base', `0x${HEX}`);
+    expect(ledger.insert).not.toHaveBeenCalled();
+  });
+
+  it('constructs domain audit URL using INTERNAL_APP_URL or SITE_ORIGIN', async () => {
+    fakeLedger();
+    paidOnChain(9);
+    vi.stubEnv('INTERNAL_APP_URL', 'https://internal.app.local:8080/');
+
+    const res = await trustReceipt(receiptRequest(paid));
+    expect(res.status).toBe(200);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('https://internal.app.local:8080/api/scan/audit?domain=shop.example.com'),
+      expect.anything()
+    );
   });
 
   it('quotes $9.00 in the x402 challenge and in GET', async () => {

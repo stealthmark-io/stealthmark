@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { BarChart3, CheckCircle2, ShieldCheck, Trophy, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from '@/components/landing/Footer';
@@ -117,7 +117,7 @@ function HallOfFameTable({ entries }: { entries: HallOfFameEntry[] | null }) {
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[560px] text-sm">
         <thead>
           <tr className="text-left text-[11px] font-mono uppercase tracking-wider text-slate-500 border-b border-white/10">
             <th scope="col" className="py-2 pr-3">#</th>
@@ -185,14 +185,14 @@ function PublicIndexTable({ edition }: { edition: PublicIndexEdition }) {
             </a>
           </dd>
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <dt className="text-[11px] font-mono uppercase tracking-wider text-slate-500">sha256 of the audited domains</dt>
           <dd className="text-slate-300 font-mono text-xs break-all">{edition.source.list_sha256}</dd>
           <dd className="text-slate-500 text-xs pt-1">Lowercase, sorted, one per line, no trailing newline.</dd>
         </div>
       </dl>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[460px] text-sm">
           <thead>
             <tr className="text-left text-[11px] font-mono uppercase tracking-wider text-slate-500 border-b border-white/10">
               <th scope="col" className="py-2 pr-3">Check</th>
@@ -230,7 +230,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
   const initialDomain = requested ? (sanitizeAndValidateDomain(requested) ?? '') : '';
 
   return (
-    <div className="min-h-screen bg-[#060709] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-[#060709] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden">
       <Navbar />
 
       <main className="flex-1 pt-32 pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full space-y-16">
@@ -248,11 +248,17 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
           </p>
           <StatusBanner search={search} entries={entries} />
           <div className="flex flex-wrap gap-3 pt-1">
-            <Link href="/scan">
-              <Button variant="primary" size="md">Scan your domain</Button>
+            <Link
+              href="/scan"
+              className={buttonVariants({ variant: "primary", size: "md" })}
+            >
+              Scan your domain
             </Link>
-            <Link href="#claim">
-              <Button variant="outline" size="md">Claim your spot</Button>
+            <Link
+              href="#claim"
+              className={buttonVariants({ variant: "outline", size: "md" })}
+            >
+              Claim your spot
             </Link>
           </div>
         </section>
