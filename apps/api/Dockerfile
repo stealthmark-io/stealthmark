@@ -1,4 +1,4 @@
-FROM node:22-slim AS builder
+FROM node:22.23.5-slim AS builder
 WORKDIR /app
 COPY package*.json turbo.json ./
 COPY apps/api/package.json apps/api/
@@ -23,7 +23,7 @@ RUN for pkg in db shared; do \
     done \
     && npm run build --workspace=@stealthmark/api
 
-FROM node:22-slim
+FROM node:22.23.5-slim
 WORKDIR /app
 COPY package*.json ./
 COPY apps/api/package.json apps/api/

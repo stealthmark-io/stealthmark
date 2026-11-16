@@ -2,6 +2,8 @@
 // @stealthmark/next — October 2026 4-Layer Edge & MCP Shield
 // ═══════════════════════════════════════════════════════════════════
 
+import { hasUnsupportedBrotliEncoding } from '@stealthmark/core';
+
 export interface NormalizedTargetResult {
   normalizedPath: string;
   normalizedHost: string;
@@ -171,8 +173,8 @@ export function evaluateAgentBehavior(
     }
   }
 
-  const contentEncoding = headers.get('content-encoding') || '';
-  if (/\bbr\b/i.test(contentEncoding)) {
+  const contentEncoding = headers.get('content-encoding');
+  if (hasUnsupportedBrotliEncoding(contentEncoding)) {
     threatScore += 95;
     matchedSignatures.push('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497');
   }

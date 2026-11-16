@@ -44,6 +44,15 @@ def fetched(status: int = 200, headers: list[tuple[str, str]] | dict[str, str] |
         ({"server": "Ivanti Connect Secure/22.7"}, b"", "warn"),
         ({"server": "Cisco Secure Firewall/9.20"}, b"", "warn"),
         ({"server": "GlobalProtect Portal/11.1"}, b"", "warn"),
+        ({"server": "envoy/1.36.11"}, b"", "warn"),
+        ({"server": "envoy/1.36.12"}, b"", "info"),
+        ({"server": "envoy/1.37.7"}, b"", "warn"),
+        ({"server": "envoy/1.37.8"}, b"", "info"),
+        ({"server": "envoy/1.38.5"}, b"", "warn"),
+        ({"server": "envoy/1.38.6"}, b"", "info"),
+        ({"server": "envoy/1.39.2"}, b"", "warn"),
+        ({"server": "envoy/1.39.3"}, b"", "info"),
+        ({"server": "envoy/1.35.0"}, b"", "warn"),
     ],
 )
 def test_end_of_life_runtime_warns_and_never_claims_an_exploit(headers, body, status):

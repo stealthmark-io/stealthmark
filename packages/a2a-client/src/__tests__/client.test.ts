@@ -34,6 +34,7 @@ describe('A2AClient', () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer test-key',
+          'Accept-Encoding': 'gzip, deflate',
         }),
       })
     );
@@ -65,6 +66,14 @@ describe('A2AClient', () => {
       input: { url: 'https://example.com' },
     });
 
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://a2a.stealthmark.io/a2a/tasks',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Accept-Encoding': 'gzip, deflate',
+        }),
+      })
+    );
     expect(result.status).toBe('completed');
     expect(result.taskId).toBe('task_abc');
     expect(result.cost_usd).toBe(0.05);
@@ -140,7 +149,14 @@ describe('A2AClient', () => {
 
     const result = await new A2AClient().getTaskStatus('https://a2a.stealthmark.io/', 'a/b');
 
-    expect(global.fetch).toHaveBeenCalledWith('https://a2a.stealthmark.io/a2a/tasks/a%2Fb', expect.anything());
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://a2a.stealthmark.io/a2a/tasks/a%2Fb',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Accept-Encoding': 'gzip, deflate',
+        }),
+      })
+    );
     expect(result).toEqual({ taskId: 'a/b', status: 'running' });
   });
 

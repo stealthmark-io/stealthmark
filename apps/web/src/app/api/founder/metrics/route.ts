@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { isAdminEmail, isAuthorizedAdmin } from '@/lib/admin-auth';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { SAFE_OUTBOUND_ACCEPT_ENCODING } from '@stealthmark/core';
 
 const NO_STORE_HEADERS = {
   'Cache-Control': 'private, no-store, no-cache, must-revalidate',
@@ -139,10 +140,14 @@ export async function GET(req: NextRequest) {
       try {
         const res = await fetch(site.url, {
           method: 'GET',
-          headers: { 'User-Agent': 'StealthMarkHealthMonitor/1.0' },
+          headers: {
+            'User-Agent': 'StealthMarkHealthMonitor/1.0',
+            'Accept-Encoding': SAFE_OUTBOUND_ACCEPT_ENCODING,
+          },
           cache: 'no-store',
           signal: AbortSignal.timeout(6000),
         });
+        await res.body?.cancel().catch(() => undefined);
         return {
           name: site.name,
           url: site.url,

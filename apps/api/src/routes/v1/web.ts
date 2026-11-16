@@ -233,6 +233,7 @@ export async function webRoutes(app: FastifyInstance, options: { db: DbClient })
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept-Encoding': 'gzip, deflate',
             ...(config.WEB_VISION_API_KEY
               ? { Authorization: `Bearer ${config.WEB_VISION_API_KEY}` }
               : {}),
@@ -357,6 +358,7 @@ export async function webRoutes(app: FastifyInstance, options: { db: DbClient })
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept-Encoding': 'gzip, deflate',
             ...(config.WEB_VISION_API_KEY
               ? { Authorization: `Bearer ${config.WEB_VISION_API_KEY}` }
               : {}),

@@ -10,6 +10,13 @@ export { createUsageReporter, resolveAgentIdentifier } from './usage-reporter.js
 export type { UsageReporter } from './usage-reporter.js';
 export { discoverCapabilities } from './auto-discovery.js';
 export { normalizeHost, resolveRequestHost, buildEventMetadata, MAX_HOST_LENGTH } from './request-context.js';
+export {
+  SAFE_OUTBOUND_ACCEPT_ENCODING,
+  BROTLI_BLOCK_STATUS,
+  BROTLI_BLOCK_CODE,
+  BROTLI_BLOCK_BODY,
+  hasUnsupportedBrotliEncoding,
+} from './encoding-guard.js';
 
 export type { RouteDiscoveryOptions } from './auto-discovery.js';
 

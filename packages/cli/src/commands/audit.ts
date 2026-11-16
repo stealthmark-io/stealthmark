@@ -3,6 +3,8 @@
 // Lightweight client for GET /api/v2/audit (Passive Readiness Auditor)
 // ═══════════════════════════════════════════════════════════════════
 
+import { SAFE_OUTBOUND_ACCEPT_ENCODING } from '@stealthmark/core';
+
 export interface AuditCheckItem {
   id: string;
   title: string;
@@ -253,6 +255,7 @@ export async function runAudit(target: string, options: AuditOptions = {}): Prom
       headers: {
         Accept: 'application/json',
         'User-Agent': 'StealthMarkCLI/0.1.7 (+https://stealthmark.io)',
+        'Accept-Encoding': SAFE_OUTBOUND_ACCEPT_ENCODING,
       },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

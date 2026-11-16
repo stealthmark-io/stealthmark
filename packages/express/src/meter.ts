@@ -2,8 +2,69 @@
 // @stealthmark/express — Usage metering shared by the Express and Fastify adapters
 // ═══════════════════════════════════════════════════════════════════
 
-import { buildEventMetadata, resolveAgentIdentifier, resolveRequestHost } from '@stealthmark/core';
+import {
+  buildEventMetadata,
+  resolveAgentIdentifier,
+  resolveRequestHost,
+  hasUnsupportedBrotliEncoding,
+  BROTLI_BLOCK_STATUS,
+  BROTLI_BLOCK_BODY,
+  SAFE_OUTBOUND_ACCEPT_ENCODING,
+} from '@stealthmark/core';
 import type { DetectionResult, StealthMarkInstance, UsageEventType } from '@stealthmark/core';
+
+export function normalizeHeadersRecord(
+  rawHeaders: Record<string, string | string[] | undefined>
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(rawHeaders)) {
+    if (value !== undefined) {
+      result[key.toLowerCase()] = Array.isArray(value) ? value.join(', ') : value;
+    }
+  }
+  return result;
+}
+
+export interface ExpressResponseTarget {
+  setHeader(name: string, value: string): void;
+  status(code: number): ExpressResponseTarget;
+  send(body: string): void;
+}
+
+export function tryBlockExpressBrotli(
+  headersRecord: Record<string, string>,
+  res: ExpressResponseTarget
+): boolean {
+  if (hasUnsupportedBrotliEncoding(headersRecord['content-encoding'])) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Accept-Encoding', SAFE_OUTBOUND_ACCEPT_ENCODING);
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(BROTLI_BLOCK_STATUS).send(JSON.stringify(BROTLI_BLOCK_BODY));
+    return true;
+  }
+  return false;
+}
+
+export interface FastifyReplyTarget {
+  header(name: string, value: string): FastifyReplyTarget;
+  code(statusCode: number): FastifyReplyTarget;
+  send(payload: unknown): FastifyReplyTarget;
+}
+
+export function tryBlockFastifyBrotli(
+  headersRecord: Record<string, string>,
+  reply: FastifyReplyTarget
+): boolean {
+  if (hasUnsupportedBrotliEncoding(headersRecord['content-encoding'])) {
+    reply
+      .header('Content-Type', 'application/json; charset=utf-8')
+      .header('Accept-Encoding', SAFE_OUTBOUND_ACCEPT_ENCODING)
+      .header('Cache-Control', 'no-store');
+    reply.code(BROTLI_BLOCK_STATUS).send(BROTLI_BLOCK_BODY);
+    return true;
+  }
+  return false;
+}
 
 export function isManifestPath(pathOnly: string): boolean {
   return (

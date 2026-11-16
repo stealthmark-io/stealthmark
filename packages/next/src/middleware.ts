@@ -19,7 +19,15 @@
 //
 // ═══════════════════════════════════════════════════════════════════
 
-import { buildEventMetadata, createStealthMark, resolveAgentIdentifier, resolveRequestHost } from '@stealthmark/core';
+import {
+  buildEventMetadata,
+  createStealthMark,
+  resolveAgentIdentifier,
+  resolveRequestHost,
+  BROTLI_BLOCK_BODY,
+  BROTLI_BLOCK_STATUS,
+  SAFE_OUTBOUND_ACCEPT_ENCODING,
+} from '@stealthmark/core';
 import type { DetectionResult, StealthMarkConfig, StealthMarkInstance } from '@stealthmark/core';
 import { canaryFixtureFor, createCanarySigner, isDotfilePath } from './canary.js';
 import type { CanarySigner, DotfilePolicy } from './canary.js';
@@ -72,6 +80,63 @@ const NEGOTIATED_VARY = 'accept, user-agent, x-stealthmark-agent';
 const CANARY_KEY_WARNING =
   '[stealthmark] dotfiles: "synthetic_fixture" needs a valid Canary key (canaryKey or STEALTHMARK_CANARY_KEY); /.env and /.git/ answer 403 instead.';
 
+interface PerimeterEvaluation {
+  blockedResponse?: Response;
+  pathname: string;
+  normalizedPath: string;
+}
+
+function evaluatePerimeterOrBlock(request: NextLikeRequest): PerimeterEvaluation {
+  const pathname = request.nextUrl?.pathname ?? new URL(request.url ?? '/', 'http://localhost').pathname;
+  const rawHost = request.headers.get('host') ?? '';
+  const norm = sanitizeAndNormalizeRequest(pathname, rawHost);
+  if (norm.isBlocked) {
+    return {
+      pathname,
+      normalizedPath: norm.normalizedPath,
+      blockedResponse: new Response(
+        JSON.stringify({ error: 'Blocked by StealthMark Edge Shield', anomalies: norm.anomalies }),
+        { status: 400, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
+      ),
+    };
+  }
+
+  const threat = evaluateAgentBehavior(norm.normalizedPath, request.headers);
+  if (threat.matchedSignatures.includes('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497')) {
+    return {
+      pathname,
+      normalizedPath: norm.normalizedPath,
+      blockedResponse: new Response(
+        JSON.stringify(BROTLI_BLOCK_BODY),
+        {
+          status: BROTLI_BLOCK_STATUS,
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store',
+            'Accept-Encoding': SAFE_OUTBOUND_ACCEPT_ENCODING,
+          },
+        }
+      ),
+    };
+  }
+
+  if (threat.classification === 'MALICIOUS_AGENT_BOTNET') {
+    return {
+      pathname,
+      normalizedPath: norm.normalizedPath,
+      blockedResponse: new Response(
+        JSON.stringify({ error: 'Autonomous offensive agent detected', signatures: threat.matchedSignatures }),
+        { status: 403, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
+      ),
+    };
+  }
+
+  return {
+    pathname,
+    normalizedPath: norm.normalizedPath,
+  };
+}
+
 /**
  * Creates the minimal, manifest-only Next.js middleware.
  *
@@ -106,23 +171,11 @@ export function stealthmark(config: StealthMarkNextConfig) {
   const canary = resolveCanarySigner(config);
 
   return async function middleware(request: NextLikeRequest, event?: NextLikeFetchEvent): Promise<Response | undefined> {
-    const pathname = request.nextUrl?.pathname ?? new URL(request.url ?? '/', 'http://localhost').pathname;
-    const rawHost = request.headers.get('host') ?? '';
-    const norm = sanitizeAndNormalizeRequest(pathname, rawHost);
-    if (norm.isBlocked) {
-      return new Response(
-        JSON.stringify({ error: 'Blocked by StealthMark Edge Shield', anomalies: norm.anomalies }),
-        { status: 400, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
-      );
-    }
-    const threat = evaluateAgentBehavior(norm.normalizedPath, request.headers);
-    if (threat.classification === 'MALICIOUS_AGENT_BOTNET') {
-      return new Response(
-        JSON.stringify({ error: 'Autonomous offensive agent detected', signatures: threat.matchedSignatures }),
-        { status: 403, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
-      );
-    }
-    if (isDotfilePath(norm.normalizedPath)) return answerDotfile(sm, canary, request, norm.normalizedPath);
+    const perimeter = evaluatePerimeterOrBlock(request);
+    if (perimeter.blockedResponse) return perimeter.blockedResponse;
+
+    const { pathname, normalizedPath } = perimeter;
+    if (isDotfilePath(normalizedPath)) return answerDotfile(sm, canary, request, normalizedPath);
     const detection = sm.detect(request.headers);
     const handling = decideAgentHandling(sm, request, detection, pathname);
 
@@ -173,23 +226,11 @@ export function withStealthMark<Req extends NextLikeRequest = NextLikeRequest>(
   const canary = resolveCanarySigner(config);
 
   return async function middleware(request: Req, event?: NextLikeFetchEvent): Promise<Response | undefined> {
-    const pathname = request.nextUrl?.pathname ?? new URL(request.url ?? '/', 'http://localhost').pathname;
-    const rawHost = request.headers.get('host') ?? '';
-    const norm = sanitizeAndNormalizeRequest(pathname, rawHost);
-    if (norm.isBlocked) {
-      return new Response(
-        JSON.stringify({ error: 'Blocked by StealthMark Edge Shield', anomalies: norm.anomalies }),
-        { status: 400, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
-      );
-    }
-    const threat = evaluateAgentBehavior(norm.normalizedPath, request.headers);
-    if (threat.classification === 'MALICIOUS_AGENT_BOTNET') {
-      return new Response(
-        JSON.stringify({ error: 'Autonomous offensive agent detected', signatures: threat.matchedSignatures }),
-        { status: 403, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
-      );
-    }
-    if (isDotfilePath(norm.normalizedPath)) return answerDotfile(sm, canary, request, norm.normalizedPath);
+    const perimeter = evaluatePerimeterOrBlock(request);
+    if (perimeter.blockedResponse) return perimeter.blockedResponse;
+
+    const { pathname, normalizedPath } = perimeter;
+    if (isDotfilePath(normalizedPath)) return answerDotfile(sm, canary, request, normalizedPath);
     const detection = sm.detect(request.headers);
     const handling = decideAgentHandling(sm, request, detection, pathname);
 

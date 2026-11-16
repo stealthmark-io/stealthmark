@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import type { NextFetchEvent } from 'next/server';
+import { BROTLI_BLOCK_BODY, SAFE_OUTBOUND_ACCEPT_ENCODING } from '@stealthmark/core';
 import middleware from '../middleware';
 
 function makeRequest(url: string, headers: Record<string, string> = {}, method = 'GET'): NextRequest {
@@ -151,5 +152,58 @@ describe('Edge Shield anti-spoofing and structured observability', () => {
       status: 200,
       threatScore: 45,
     });
+  });
+
+  it('blocks inbound Brotli payload with HTTP 415 and emits EDGE_SHIELD_BROTLI_BLOCK telemetry with 12 keys (CVE-2026-111497)', async () => {
+    const brotliHeaders = {
+      'cf-connecting-ip': '198.51.100.12',
+      'cf-ray': '9f11223344556677-EZE',
+      'cf-ipcountry': 'BR',
+      'user-agent': 'BrotliExploitProbe/1.0',
+      'content-encoding': 'br',
+    };
+
+    const req = makeRequest('https://stealthmark.io/api/upload', brotliHeaders, 'POST');
+    const res = await runMiddleware(req);
+
+    expect(res.status).toBe(415);
+    expect(res.headers.get('accept-encoding')).toBe(SAFE_OUTBOUND_ACCEPT_ENCODING);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+
+    const body = await res.json();
+    expect(body).toEqual(BROTLI_BLOCK_BODY);
+
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    const logLine = String(logSpy.mock.calls[0]?.[0]);
+    const telemetry = JSON.parse(logLine) as Record<string, unknown>;
+
+    const EXPECTED_KEYS = [
+      'cfCountry',
+      'cfRay',
+      'clientIp',
+      'clientNet',
+      'codes',
+      'event',
+      'method',
+      'path',
+      'status',
+      'threatScore',
+      'ts',
+      'ua',
+    ].sort();
+
+    expect(Object.keys(telemetry).sort()).toEqual(EXPECTED_KEYS);
+    expect(telemetry.event).toBe('EDGE_SHIELD_BROTLI_BLOCK');
+    expect(telemetry.status).toBe(415);
+    expect(telemetry.method).toBe('POST');
+    expect(telemetry.path).toBe('/api/upload');
+    expect(telemetry.clientIp).toBe('198.51.100.12');
+    expect(telemetry.clientNet).toBe('198.51.100.12');
+    expect(telemetry.cfRay).toBe('9f11223344556677-EZE');
+    expect(telemetry.cfCountry).toBe('BR');
+    expect(telemetry.ua).toBe('BrotliExploitProbe/1.0');
+    expect(telemetry.codes).toEqual(
+      expect.arrayContaining(['INBOUND_BROTLI_PAYLOAD_CVE_2026_111497'])
+    );
   });
 });

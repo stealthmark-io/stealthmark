@@ -99,6 +99,36 @@ export async function buildApp(options: AppOptions = {}) {
     genReqId: () => crypto.randomUUID(),
   })
 
+  // Inbound Brotli payload guard early in request lifecycle (CVE-2026-111497)
+  const UNSUPPORTED_BROTLI_TOKENS = new Set(['br', 'x-brotli', 'brotli'])
+  app.addHook('onRequest', async (request, reply) => {
+    const rawEncoding = request.headers['content-encoding']
+    if (!rawEncoding) return
+    const entries = Array.isArray(rawEncoding) ? rawEncoding : [rawEncoding]
+    for (const entry of entries) {
+      if (typeof entry !== 'string') continue
+      const tokens = entry.split(',')
+      for (const rawToken of tokens) {
+        const trimmed = rawToken.trim().toLowerCase()
+        if (!trimmed) continue
+        const baseToken = trimmed.split(';')[0]?.trim() ?? trimmed
+        if (UNSUPPORTED_BROTLI_TOKENS.has(trimmed) || UNSUPPORTED_BROTLI_TOKENS.has(baseToken)) {
+          reply
+            .status(415)
+            .header('Accept-Encoding', 'gzip, deflate')
+            .header('Cache-Control', 'no-store')
+            .header('Content-Type', 'application/json; charset=utf-8')
+            .send({
+              error: 'unsupported_media_type',
+              code: 'INBOUND_BROTLI_BLOCKED_CVE_2026_111497',
+              message: 'Brotli-encoded request payloads are rejected to mitigate CVE-2026-111497.',
+            })
+          return reply
+        }
+      }
+    }
+  })
+
   // ── Database Client ────────────────────────────────
   let db = options.db
   if (!db && config.DATABASE_URL) {
