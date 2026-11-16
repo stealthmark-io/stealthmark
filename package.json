@@ -28,7 +28,7 @@
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.12"
     },
-    "next": "16.4.2",
+    "next": "16.4.5",
     "zod": "^4.6.6"
   }
 }
