@@ -313,6 +313,21 @@ export const openApiSpec = {
         summary: 'Record an agent access event for a site',
         operationId: 'recordSiteAccess',
         parameters: [pathParam('id')],
+        requestBody: jsonBody({
+          type: 'object',
+          required: ['action'],
+          properties: {
+            action: { type: 'string', enum: ['allowed', 'blocked', 'rate_limited', 'revoked'] },
+            agentId: uuid,
+            passportId: uuid,
+            reason: { type: 'string', maxLength: 500, description: 'At most 500 characters once leading and trailing whitespace is trimmed.' },
+            ipAddress: {
+              type: 'string',
+              description: 'A single IPv4 or IPv6 literal; lists such as "a, b" are rejected. Omitted or empty, the address the request came from is recorded.',
+            },
+            latencyMs: { type: 'integer' },
+          },
+        }),
         responses: { '201': { description: 'Event recorded' }, '400': { description: 'Validation error' }, '403': { description: 'Not your site' }, ...standardErrors },
       },
     },
