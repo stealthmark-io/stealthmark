@@ -3,7 +3,6 @@ import { eq, desc, asc, sql, and, lt } from 'drizzle-orm'
 import {
   gatewayAccessEvents,
   type GatewayAccessEvent,
-  type NewGatewayAccessEvent,
   type DbClient,
 } from '@stealthmark/db'
 
@@ -44,11 +43,24 @@ export interface SiteGatewayAnalytics {
 }
 
 const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000'
+const MAX_AUDIT_REASON_CHARS = 500
+
+export interface EventHashMetadata {
+  ipAddress?: string | null
+  passportId?: string | null
+  version?: 'v1' | 'v2'
+}
+
+export function sanitizeAuditReason(reason: string | null | undefined): string | null {
+  if (!reason) return null
+  const cleaned = reason.replace(/[\x00-\x1f\x7f]/g, '').trim()
+  return cleaned ? cleaned.slice(0, MAX_AUDIT_REASON_CHARS) : null
+}
 
 /**
- * Computes the SHA-256 event hash for an access event link in the site's hash chain.
+ * Legacy v1 SHA-256 event hash (used only for verifying historical pre-v2 chain segments).
  */
-export function computeEventHash(
+export function computeLegacyEventHashV1(
   prevHash: string,
   siteId: string,
   agentId: string | null | undefined,
@@ -69,6 +81,45 @@ export function computeEventHash(
 }
 
 /**
+ * Computes the SHA-256 event hash (v2) for an access event link in the site's hash chain.
+ * Binds `passportId` and `ipAddress` into the digest so neither can be altered without breaking the chain.
+ */
+export function computeEventHash(
+  prevHash: string,
+  siteId: string,
+  agentId: string | null | undefined,
+  action: string,
+  reason: string | null | undefined,
+  createdAt: Date,
+  metadataOrIp?: EventHashMetadata | string | null,
+  passportIdArg?: string | null
+): string {
+  const meta: EventHashMetadata =
+    typeof metadataOrIp === 'string' || metadataOrIp === null
+      ? { ipAddress: metadataOrIp, passportId: passportIdArg }
+      : metadataOrIp ?? {}
+
+  if (meta.version === 'v1') {
+    return computeLegacyEventHashV1(prevHash, siteId, agentId, action, reason, createdAt)
+  }
+
+  const sanitizedReason = sanitizeAuditReason(reason) ?? ''
+  const payload = [
+    'v2',
+    prevHash,
+    siteId,
+    agentId || '',
+    meta.passportId || '',
+    action,
+    sanitizedReason,
+    meta.ipAddress || '',
+    createdAt.toISOString(),
+  ].join('|')
+
+  return crypto.createHash('sha256').update(payload).digest('hex')
+}
+
+/**
  * Appends a new gateway access event into the per-site cryptographic audit chain.
  * Protected with PostgreSQL advisory transaction locking to prevent concurrent chain forks.
  */
@@ -76,7 +127,8 @@ export async function logGatewayAccessEvent(
   db: DbClient,
   params: LogGatewayAccessEventParams
 ): Promise<GatewayAccessEvent> {
-  const { siteId, orgId, passportId, agentId, action, reason, ipAddress, latencyMs } = params
+  const { siteId, orgId, passportId, agentId, action, ipAddress, latencyMs } = params
+  const sanitizedReason = sanitizeAuditReason(params.reason)
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'gateway-chain:' + siteId}))`)
@@ -91,7 +143,10 @@ export async function logGatewayAccessEvent(
 
     const prevHash = latest?.eventHash || GENESIS_HASH
     const createdAt = new Date()
-    const eventHash = computeEventHash(prevHash, siteId, agentId, action, reason, createdAt)
+    const eventHash = computeEventHash(prevHash, siteId, agentId, action, sanitizedReason, createdAt, {
+      ipAddress,
+      passportId,
+    })
 
     // 2. Insert into database
     const [event] = await tx
@@ -102,7 +157,7 @@ export async function logGatewayAccessEvent(
         passportId,
         agentId,
         action,
-        reason,
+        reason: sanitizedReason,
         ipAddress,
         latencyMs,
         prevHash,
@@ -188,6 +243,8 @@ export async function verifyGatewayChain(
 
   let expectedPrevHash = GENESIS_HASH
 
+  let seenV2 = false
+
   for (let i = 0; i < events.length; i++) {
     const row = events[i]
 
@@ -201,22 +258,38 @@ export async function verifyGatewayChain(
       }
     }
 
-    const computed = computeEventHash(
+    const computedV2 = computeEventHash(
       row.prevHash || GENESIS_HASH,
       row.siteId,
       row.agentId,
       row.action,
       row.reason,
-      row.createdAt
+      row.createdAt,
+      {
+        ipAddress: row.ipAddress,
+        passportId: row.passportId,
+      }
     )
 
-    if (computed !== row.eventHash) {
-      return {
-        valid: false,
-        totalEvents: events.length,
-        verifiedCount: i,
-        brokenAtId: row.id,
-        message: `Corrupted hash at event index ${i}: data does not match hash ${row.eventHash}`,
+    if (computedV2 === row.eventHash) {
+      seenV2 = true
+    } else {
+      const computedV1 = computeLegacyEventHashV1(
+        row.prevHash || GENESIS_HASH,
+        row.siteId,
+        row.agentId,
+        row.action,
+        row.reason,
+        row.createdAt
+      )
+      if (seenV2 || computedV1 !== row.eventHash) {
+        return {
+          valid: false,
+          totalEvents: events.length,
+          verifiedCount: i,
+          brokenAtId: row.id,
+          message: `Corrupted hash at event index ${i}: data does not match hash ${row.eventHash}`,
+        }
       }
     }
 

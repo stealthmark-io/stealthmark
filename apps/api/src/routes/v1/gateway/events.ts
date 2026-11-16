@@ -1,10 +1,12 @@
 import { FastifyInstance } from 'fastify'
+import { isIP } from 'node:net'
 import { z } from 'zod'
 import {
   logGatewayAccessEvent,
   getPaginatedGatewayEvents,
   verifyGatewayChain,
   getSiteAnalytics,
+  sanitizeAuditReason,
 } from '../../../services/gateway-audit.js'
 import {
   getAgentBehavioralProfile,
@@ -17,13 +19,34 @@ import { isAuthorizedForOrg } from '../../../lib/org-context.js'
 import { idParams, parseParams } from '../../../lib/params.js'
 import { loadOwnedSite, parseLimit, type GatewayDeps } from './shared.js'
 
+const MAX_REASON_LENGTH = 500
+
+// In Zod v4 (`zod@^4.6.6`), `z.ipv4()` / `z.ipv6()` + `node:net` `isIP` validate strict IPv4/IPv6 syntax
+// (including IPv4-mapped IPv6 literals) while allowing empty string to fall back to `request.ip`.
+const ipAddressFieldSchema = z
+  .string()
+  .trim()
+  .optional()
+  .transform((val) => (val === '' ? undefined : val))
+  .refine(
+    (val) =>
+      val === undefined ||
+      (!val.includes(',') &&
+        (z.ipv4().safeParse(val).success || z.ipv6().safeParse(val).success || isIP(val) !== 0)),
+    { message: 'Invalid IPv4 or IPv6 address' }
+  )
+
 // The organization is always taken from the site; a client-supplied orgId is ignored.
 const recordAccessSchema = z.object({
   agentId: z.string().uuid().optional(),
   passportId: z.string().uuid().optional(),
   action: z.enum(['allowed', 'blocked', 'rate_limited', 'revoked']),
-  reason: z.string().optional(),
-  ipAddress: z.string().optional(),
+  reason: z
+    .string()
+    .trim()
+    .max(MAX_REASON_LENGTH, `Reason must not exceed ${MAX_REASON_LENGTH} characters`)
+    .optional(),
+  ipAddress: ipAddressFieldSchema,
   latencyMs: z.number().int().optional(),
 })
 
@@ -53,14 +76,18 @@ export async function registerEventRoutes(app: FastifyInstance, { db }: GatewayD
       }
     }
 
+    const resolvedIp =
+      ipAddress || (typeof request.ip === 'string' && isIP(request.ip.trim()) !== 0 ? request.ip.trim() : null)
+    const sanitizedReason = sanitizeAuditReason(reason)
+
     const event = await logGatewayAccessEvent(db, {
       siteId: site.id,
       orgId: site.orgId,
       passportId: passportId || null,
       agentId: agentId || null,
       action,
-      reason: reason || null,
-      ipAddress: ipAddress || request.ip,
+      reason: sanitizedReason,
+      ipAddress: resolvedIp,
       latencyMs: latencyMs || null,
     })
 
