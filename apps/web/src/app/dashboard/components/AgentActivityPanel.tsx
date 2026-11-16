@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { AgentSummary, SiteSummary, UsageEventItem } from "@/app/api/usage/_shared";
+import { CAPPED_EVENT_TYPE } from "@/app/api/usage/_constants";
 import { useAgentActivity, type AgentActivityData } from "../views/useAgentActivity";
 
 export const AGENT_ACTIVITY_EMPTY_COPY = "No agent traffic yet. Install the SDK and send your first event.";
@@ -63,6 +64,7 @@ function AgentRow({ agent }: { agent: AgentSummary }) {
 
 function EventRow({ event }: { event: UsageEventItem }) {
   const blocked = event.event_type === "agent_blocked";
+  const capped = event.event_type === CAPPED_EVENT_TYPE;
   const target = [event.metadata.method, event.metadata.path].filter(Boolean).join(" ");
   return (
     <tr className="hover:bg-white/[0.02] transition text-xs">
@@ -73,7 +75,9 @@ function EventRow({ event }: { event: UsageEventItem }) {
       </td>
       <td className="px-4 py-3 font-mono text-cyan-300 break-all">{target || "-"}</td>
       <td className="px-4 py-3">
-        <Badge variant={blocked ? "danger" : "neutral"} size="sm">{event.event_type}</Badge>
+        <Badge variant={blocked ? "danger" : capped ? "warning" : "neutral"} size="sm">
+          {capped ? `${event.event_type} · not billed` : event.event_type}
+        </Badge>
       </td>
       <td className="px-4 py-3 font-mono text-slate-500">{event.source}</td>
     </tr>

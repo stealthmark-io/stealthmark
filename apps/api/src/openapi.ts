@@ -39,7 +39,7 @@ const usageEvent = {
   type: 'object',
   properties: {
     event_id: { ...uuid, description: 'Idempotency key. A repeated (organization, event_id) is stored once and counted as a duplicate.' },
-    event_type: { type: 'string', enum: ['agent_request', 'agent_blocked', 'agent_manifest'] },
+    event_type: { type: 'string', enum: ['agent_request', 'agent_blocked', 'agent_manifest', 'agent_capped'] },
     site_id: { ...uuid, description: 'A site registered by the same organization. Unknown ids are dropped.' },
     agent_identifier: { type: 'string', minLength: 1, maxLength: 256 },
     occurred_at: { type: 'string', format: 'date-time' },
@@ -80,7 +80,7 @@ export const openApiSpec = {
       post: {
         summary: 'Report agent events from the SDK',
         description:
-          'Batches of 1 to 500 events. Units are decided by the server: one per agent_request or agent_manifest, none for agent_blocked. Events beyond the quota are not stored.',
+          'Batches of 1 to 500 events. Units are decided by the server: one per agent_request or agent_manifest, none for agent_blocked or agent_capped. Counted events beyond the hourly ceiling of the organization (5% of its period cap, at least 500) are stored as agent_capped at no cost. Events beyond the quota are not stored.',
         operationId: 'ingestUsage',
         requestBody: jsonBody({
           type: 'object',
@@ -95,6 +95,7 @@ export const openApiSpec = {
               rejected: { type: 'integer' },
               duplicates: { type: 'integer' },
               skipped_blocked: { type: 'integer' },
+              skipped_capped: { type: 'integer' },
               ...quotaFields,
             },
           }),

@@ -124,6 +124,19 @@ export default withStealthMark(() => NextResponse.next(), {
 
 What is sent, and where, is listed under "Data sent to StealthMark Cloud" in the `@stealthmark/core` README (`node_modules/@stealthmark/core/README.md`). The default host is https://api.stealthmark.io; override it with `usageEndpoint` or `STEALTHMARK_USAGE_ENDPOINT`. Identification is self-declared, and events are reported best-effort and can be dropped.
 
+### Spend caps
+
+Because identification is self-declared, the SDK bills each client address at most `maxAgentEventsPerClientPerHour` events per hour (default 600, `0` turns it off). Events over the cap are reported as free `agent_capped` events, and the address never leaves your server. Next.js middleware has no socket address, so the cap only sees one when you set `trustForwardedFor: true`: it then uses the last `X-Forwarded-For` hop. Enable it only when a proxy or platform you trust sets that header. Without it, all agent requests share one bucket of ten times the cap per instance. The hosted API adds an hourly ceiling per organization. Details and limits are under "Spend caps" in the `@stealthmark/core` README.
+
+```typescript
+export default withStealthMark(() => NextResponse.next(), {
+  siteName: 'My SaaS',
+  apiKey: process.env.STEALTHMARK_API_KEY,
+  trustForwardedFor: true,             // your platform sets X-Forwarded-For
+  maxAgentEventsPerClientPerHour: 600, // default
+});
+```
+
 ### Several sites, one API key
 
 Every metered event carries `metadata.host`, the host the agent requested (the `Host` header, lowercased, no port). The console groups and filters agent traffic by `metadata.host`, so no configuration is needed to tell your sites apart.

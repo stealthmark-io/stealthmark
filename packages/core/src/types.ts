@@ -60,6 +60,19 @@ export interface StealthMarkConfig {
    * on most hosting platforms the Host header is already the public host. Default: false.
    */
   trustForwardedHost?: boolean;
+  /**
+   * Billable agent events (agent_request, agent_manifest) metered per client address per hour. The count lives in
+   * memory, per process, and the address is never sent. Events over the cap are reported as zero-unit
+   * `agent_capped` events (at most 500 per client per hour) and never billed. Requests with no usable client
+   * address share one bucket with ten times this cap. Default: 600 (also used for a value that is not a number
+   * of at least 0). 0 turns the cap off.
+   */
+  maxAgentEventsPerClientPerHour?: number;
+  /**
+   * Key the per-client cap on the last X-Forwarded-For hop instead of the socket address. Enable only behind a
+   * proxy that sets or appends that header (most hosting platforms and CDNs do). Default: false.
+   */
+  trustForwardedFor?: boolean;
   /** Override the usage ingest endpoint (default: StealthMark API). Env: STEALTHMARK_USAGE_ENDPOINT */
   usageEndpoint?: string;
   /** Report metered agent events to /v1/usage/ingest. Defaults to true when an API key is available. */
@@ -103,13 +116,13 @@ export interface DetectionResult {
 }
 
 /** Metered event types accepted by POST /v1/usage/ingest */
-export type UsageEventType = 'agent_request' | 'agent_blocked' | 'agent_manifest';
+export type UsageEventType = 'agent_request' | 'agent_blocked' | 'agent_manifest' | 'agent_capped';
 
 /** A single metered agent event (one HTTP request identified as coming from an AI agent) */
 export interface UsageEvent {
   /** Defaults to 'agent_request' on the server */
   event_type?: UsageEventType;
-  /** Integer >= 1, normally 1 */
+  /** Integer >= 1, normally 1. Always 0 for agent_blocked and agent_capped. */
   units?: number;
   site_id?: string;
   agent_identifier?: string;

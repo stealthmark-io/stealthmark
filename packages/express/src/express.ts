@@ -19,6 +19,9 @@ export interface ExpressRequestLike {
   url?: string;
   path?: string;
   secure?: boolean;
+  /** Client address as Express resolves it (it follows the app's `trust proxy` setting). */
+  ip?: string;
+  socket?: { remoteAddress?: string };
   headers: Record<string, string | string[] | undefined>;
 }
 
@@ -78,7 +81,7 @@ export function stealthmarkExpress(config: StealthMarkConfig) {
       return;
     }
 
-    meterAgentRequest(sm, headersRecord, agentDetection, pathOnly, req.method);
+    meterAgentRequest(sm, headersRecord, agentDetection, pathOnly, req.method, req.ip ?? req.socket?.remoteAddress);
 
     // 1. Intercept well-known paths or agent requests on root
     if (servesManifest) {

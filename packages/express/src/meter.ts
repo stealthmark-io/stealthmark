@@ -5,6 +5,7 @@
 import {
   buildEventMetadata,
   resolveAgentIdentifier,
+  resolveClientAddress,
   resolveRequestHost,
   hasUnsupportedBrotliEncoding,
   BROTLI_BLOCK_STATUS,
@@ -97,9 +98,10 @@ function recordEvent(
   headers: Record<string, string>,
   detection: DetectionResult,
   pathOnly: string,
-  method: string | undefined
+  method: string | undefined,
+  socketAddress?: string
 ): void {
-  sm.recordAgentEvent({
+  const event = {
     event_type: eventType,
     agent_identifier: resolveAgentIdentifier(headers, detection),
     metadata: buildEventMetadata({
@@ -107,23 +109,29 @@ function recordEvent(
       method: method ?? 'GET',
       host: resolveRequestHost(headers, { trustForwardedHost: sm.trustForwardedHost }),
     }),
-  });
+  };
+  sm.recordAgentEvent(
+    event,
+    resolveClientAddress(headers, { trustForwardedFor: sm.trustForwardedFor, socketAddress })
+  );
 }
 
 /**
  * Meters exactly one event for a request identified as an AI agent.
  * Requests that do not identify themselves as agents are never recorded. The event carries the request host so the console can
- * tell sites apart, and the site_id when the instance has one.
+ * tell sites apart, and the site_id when the instance has one. `socketAddress` (the framework's `req.ip`) keys the per-client cap.
  */
 export function meterAgentRequest(
   sm: StealthMarkInstance,
   headers: Record<string, string>,
   detection: DetectionResult,
   pathOnly: string,
-  method: string | undefined
+  method: string | undefined,
+  socketAddress?: string
 ): void {
   if (!detection.isAgent) return;
-  recordEvent(sm, isManifestPath(pathOnly) ? 'agent_manifest' : 'agent_request', headers, detection, pathOnly, method);
+  const eventType = isManifestPath(pathOnly) ? 'agent_manifest' : 'agent_request';
+  recordEvent(sm, eventType, headers, detection, pathOnly, method, socketAddress);
 }
 
 /** Meters one agent request that the `block` policy answered with 403. */

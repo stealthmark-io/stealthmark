@@ -23,6 +23,7 @@ import {
   buildEventMetadata,
   createStealthMark,
   resolveAgentIdentifier,
+  resolveClientAddress,
   resolveRequestHost,
   BROTLI_BLOCK_BODY,
   BROTLI_BLOCK_STATUS,
@@ -285,15 +286,19 @@ function meterAgentRequest(
   handling: AgentHandling
 ): void {
   const eventType = MANIFEST_PATHS.has(pathname) ? 'agent_manifest' : handling === 'block' ? 'agent_blocked' : 'agent_request';
-  sm.recordAgentEvent({
-    event_type: eventType,
-    agent_identifier: resolveAgentIdentifier(request.headers, detection),
-    metadata: buildEventMetadata({
-      path: resolveMeteredPath(request, pathname),
-      method: request.method ?? 'GET',
-      host: resolveRequestHost(request.headers, { trustForwardedHost: sm.trustForwardedHost }),
-    }),
-  });
+  sm.recordAgentEvent(
+    {
+      event_type: eventType,
+      agent_identifier: resolveAgentIdentifier(request.headers, detection),
+      metadata: buildEventMetadata({
+        path: resolveMeteredPath(request, pathname),
+        method: request.method ?? 'GET',
+        host: resolveRequestHost(request.headers, { trustForwardedHost: sm.trustForwardedHost }),
+      }),
+    },
+    // Middleware has no socket: the per-client cap only gets an address from a trusted X-Forwarded-For.
+    resolveClientAddress(request.headers, { trustForwardedFor: sm.trustForwardedFor })
+  );
 }
 
 /** Manifest paths and explicit `Accept: application/agent+json` always win; then the configured policy decides. */

@@ -140,6 +140,13 @@ describe('reserveEvents', () => {
     expect(persist).toHaveBeenCalledWith(expect.anything(), 2, plan)
   })
 
+  it('hands prepare the quota as it stands before the batch', async () => {
+    const state = createState({ org: defaultOrg({ monthlyEventCap: 10 }), usedBase: 8 })
+    const prepare = vi.fn(async () => ({ unitsPerEvent: [1], plan: null }))
+    await reserveEvents(createMeteringDb(state), ORG_ID, prepare, async () => undefined, NOW)
+    expect(prepare).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ alertCap: 10, used: 8, remaining: 2 }))
+  })
+
   it('runs prepare after the organization lock and skips it for an unknown organization', async () => {
     const prepare = vi.fn(async () => ({ unitsPerEvent: [1], plan: null }))
     const persist = vi.fn(async () => undefined)

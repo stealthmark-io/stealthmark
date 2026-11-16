@@ -141,7 +141,7 @@ export const usageRecords = pgTable('usage_records', {
   success: boolean('success'),
   metadata: jsonb('metadata'),
   siteId: uuid('site_id'),
-  eventType: text('event_type').default('agent_request').notNull(), // agent_request | agent_blocked | agent_manifest
+  eventType: text('event_type').default('agent_request').notNull(), // agent_request | agent_blocked | agent_manifest | agent_capped
   units: integer('units').default(1).notNull(),
   source: text('source').default('api').notNull(), // gateway | middleware | api
   agentIdentifier: text('agent_identifier'),

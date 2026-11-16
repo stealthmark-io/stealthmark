@@ -470,6 +470,68 @@ describe('@stealthmark/express — usage metering', () => {
       });
     });
   });
+
+  describe('per-client cap', () => {
+    const capped = { ...config, maxAgentEventsPerClientPerHour: 1 };
+    const headers = { 'user-agent': 'GPTBot/1.0' };
+
+    async function eventTypes(): Promise<unknown[]> {
+      return (await ingestedEvents()).map((event) => event.event_type);
+    }
+
+    it('express: keys the cap on req.ip', async () => {
+      const middleware = stealthmarkExpress(capped);
+      for (const ip of ['203.0.113.7', '203.0.113.7', '203.0.113.8']) {
+        middleware({ path: '/a', headers, ip } as never, expressRes() as never, vi.fn());
+      }
+
+      expect(await eventTypes()).toEqual(['agent_request', 'agent_capped', 'agent_request']);
+    });
+
+    it('express: falls back to the socket address', async () => {
+      const middleware = stealthmarkExpress(capped);
+      for (const remoteAddress of ['203.0.113.7', '203.0.113.7', '203.0.113.8']) {
+        middleware({ path: '/a', headers, socket: { remoteAddress } } as never, expressRes() as never, vi.fn());
+      }
+
+      expect(await eventTypes()).toEqual(['agent_request', 'agent_capped', 'agent_request']);
+    });
+
+    it('express: a forged X-Forwarded-For does not open a new bucket by default', async () => {
+      const middleware = stealthmarkExpress(capped);
+      for (const forged of ['198.51.100.1', '198.51.100.2']) {
+        middleware(
+          { path: '/a', headers: { ...headers, 'x-forwarded-for': forged }, ip: '203.0.113.7' } as never,
+          expressRes() as never,
+          vi.fn()
+        );
+      }
+
+      expect(await eventTypes()).toEqual(['agent_request', 'agent_capped']);
+    });
+
+    it('express: uses the last X-Forwarded-For hop with trustForwardedFor', async () => {
+      const middleware = stealthmarkExpress({ ...capped, trustForwardedFor: true });
+      for (const forwarded of ['198.51.100.1, 203.0.113.7', '198.51.100.2, 203.0.113.7', '198.51.100.1, 203.0.113.8']) {
+        middleware(
+          { path: '/a', headers: { ...headers, 'x-forwarded-for': forwarded }, ip: '192.0.2.1' } as never,
+          expressRes() as never,
+          vi.fn()
+        );
+      }
+
+      expect(await eventTypes()).toEqual(['agent_request', 'agent_capped', 'agent_request']);
+    });
+
+    it('fastify: keys the cap on request.ip', async () => {
+      const hook = stealthmarkFastify(capped);
+      for (const ip of ['203.0.113.7', '203.0.113.7', '203.0.113.8']) {
+        hook({ url: '/a', method: 'GET', headers, ip } as never, fastifyReply() as never, vi.fn());
+      }
+
+      expect(await eventTypes()).toEqual(['agent_request', 'agent_capped', 'agent_request']);
+    });
+  });
 });
 
 describe('@stealthmark/express — agentPolicy "manifest"', () => {
