@@ -11,6 +11,7 @@ import type {
   UsageReporterOptions,
   UsageStats,
 } from './types.js';
+import { SAFE_OUTBOUND_ACCEPT_ENCODING } from './encoding-guard.js';
 
 export const DEFAULT_USAGE_ENDPOINT = 'https://api.stealthmark.io';
 
@@ -276,7 +277,11 @@ export function createUsageReporter(options: UsageReporterOptions): UsageReporte
       try {
         response = await fetch(url, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${apiKey}`,
+            'Accept-Encoding': SAFE_OUTBOUND_ACCEPT_ENCODING,
+          },
           body: payload,
           signal: requestSignal(),
         });

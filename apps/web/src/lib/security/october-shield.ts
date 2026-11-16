@@ -6,6 +6,8 @@
  *  3. MCP Protocol & Async JSON Parser Guard (CVE-2026-111768, CVE-2026-18401, CVE-2026-111771)
  */
 
+import { hasUnsupportedBrotliEncoding } from '@stealthmark/core';
+
 export interface NormalizationResult {
   normalizedPath: string;
   normalizedHost: string;
@@ -222,8 +224,8 @@ export function evaluateAgentBehavior(normalizedPath: string, headers: Headers):
   }
 
   // Inbound Brotli payload RCE guard (CVE-2026-111497)
-  const contentEncoding = headers.get('content-encoding') || '';
-  if (/\bbr\b/i.test(contentEncoding)) {
+  const contentEncoding = headers.get('content-encoding');
+  if (hasUnsupportedBrotliEncoding(contentEncoding)) {
     score += 85;
     matchedSignatures.push('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497');
   }

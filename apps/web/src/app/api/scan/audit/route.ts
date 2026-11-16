@@ -1,4 +1,5 @@
 import { sanitizeAndValidateDomain } from '@/lib/security/network-guard';
+import { SAFE_OUTBOUND_ACCEPT_ENCODING } from '@stealthmark/core';
 import {
   enrichWithInternetDbIfMissing,
   enrichWithV2ActiveShieldChecks,
@@ -349,6 +350,7 @@ export async function GET(request: Request) {
             Accept: 'application/json',
             'X-Forwarded-For': ip,
             'x-internal-secret': gatewayInternalSecret(),
+            'Accept-Encoding': SAFE_OUTBOUND_ACCEPT_ENCODING,
           },
           cache: 'no-store',
         }

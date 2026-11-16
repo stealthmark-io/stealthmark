@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { withStealthMark } from '@stealthmark/next';
-import type { Capability } from '@stealthmark/core';
+import { BROTLI_BLOCK_BODY, SAFE_OUTBOUND_ACCEPT_ENCODING, type Capability } from '@stealthmark/core';
 import { AGENT_MANIFEST_HEADERS, AGENT_MANIFEST_PAYLOAD } from '@/lib/agent-manifest';
 import { clientIp, clientNetwork } from '@/lib/client-ip';
 import { buildContentSecurityPolicy, cspEnvironment } from '@/lib/csp';
@@ -204,6 +204,30 @@ function evaluateEdgePerimeter(request: NextRequest): NextResponse | PreparedEdg
   const threat = evaluateAgentBehavior(norm.normalizedPath, requestHeaders);
   const combinedCodes = [...norm.anomalies, ...threat.matchedSignatures];
   const effectiveThreatScore = Math.min(100, threat.threatScore + (norm.anomalies.length > 0 ? 45 : 0));
+
+  if (threat.matchedSignatures.includes('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497')) {
+    emitEdgeShieldTelemetry({
+      ts: new Date().toISOString(),
+      event: 'EDGE_SHIELD_BROTLI_BLOCK',
+      status: 415,
+      method: request.method,
+      path: safePath,
+      clientIp: resolvedIp,
+      clientNet: resolvedNet,
+      cfRay,
+      cfCountry,
+      ua,
+      threatScore: effectiveThreatScore,
+      codes: combinedCodes,
+    });
+    return NextResponse.json(BROTLI_BLOCK_BODY, {
+      status: 415,
+      headers: {
+        'Accept-Encoding': SAFE_OUTBOUND_ACCEPT_ENCODING,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
 
   if (threat.classification === 'MALICIOUS_AGENT_BOTNET') {
     emitEdgeShieldTelemetry({

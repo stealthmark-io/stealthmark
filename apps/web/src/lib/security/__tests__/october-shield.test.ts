@@ -105,6 +105,22 @@ describe('StealthMark Security Shield - Octubre 2026 Payloads', () => {
       expect(res.matchedSignatures).toContain('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497');
     });
 
+    it('evalua codificaciones Brotli entrantes (br, gzip, br, x-brotli) sin falsos positivos en brace o gzip', () => {
+      // Casos positivos
+      for (const enc of ['br', 'gzip, br', 'x-brotli', 'brotli', 'gzip, x-brotli']) {
+        const headers = new Headers({ 'content-encoding': enc });
+        const res = evaluateAgentBehavior('/api/data', headers);
+        expect(res.matchedSignatures, `encoding ${enc} should be detected`).toContain('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497');
+      }
+
+      // Casos negativos (sin falso positivo)
+      for (const enc of ['gzip', 'deflate', 'brace', 'gzip, brace', 'identity']) {
+        const headers = new Headers({ 'content-encoding': enc });
+        const res = evaluateAgentBehavior('/api/data', headers);
+        expect(res.matchedSignatures, `encoding ${enc} should not match`).not.toContain('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497');
+      }
+    });
+
     it('bloquea sondas CISA KEV contra Magento upload, GitLab CI lint, Ivanti Connect Secure, Cisco ASA/FTD y Palo Alto GlobalProtect (CVE-2026-48356 / CVE-2026-97229 / CVE-2026-118527 / CVE-2026-76418 / CVE-2026-0257)', () => {
       const headers = new Headers();
       const magento = evaluateAgentBehavior('/pub/media/custom_options/quote/s/h/shell.phtml', headers);

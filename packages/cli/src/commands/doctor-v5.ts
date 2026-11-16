@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const C = {
   reset: '\x1b[0m',
@@ -13,8 +14,14 @@ const C = {
 };
 
 function compareSemver(a: string, b: string): number {
-  const pa = String(a).replace(/^[^\d]+/, '').split('.').map(Number);
-  const pb = String(b).replace(/^[^\d]+/, '').split('.').map(Number);
+  const pa = String(a)
+    .replace(/^[^\d]+/, '')
+    .split('.')
+    .map((part) => parseInt(part, 10) || 0);
+  const pb = String(b)
+    .replace(/^[^\d]+/, '')
+    .split('.')
+    .map((part) => parseInt(part, 10) || 0);
   for (let i = 0; i < 3; i++) {
     const na = pa[i] || 0;
     const nb = pb[i] || 0;
@@ -22,6 +29,142 @@ function compareSemver(a: string, b: string): number {
     if (na < nb) return -1;
   }
   return 0;
+}
+
+export interface SecurityRiskEvaluation {
+  vulnerable: boolean;
+  version?: string;
+  detail: string;
+}
+
+export interface PythonBrotliPackageRisk {
+  name: string;
+  version: string;
+  vulnerable: boolean;
+}
+
+export interface PythonBrotliRiskEvaluation {
+  vulnerable: boolean;
+  packages: PythonBrotliPackageRisk[];
+  detail: string;
+}
+
+export function evaluateNode2ShellRisk(versionStr: string): SecurityRiskEvaluation {
+  const cleanVer = String(versionStr).replace(/^v/, '').trim();
+  const major = parseInt(cleanVer.split('.')[0] || '0', 10);
+  let vulnerable = false;
+
+  if (isNaN(major) || major < 22) {
+    vulnerable = true;
+  } else if (major === 22 && compareSemver(cleanVer, '22.23.4') < 0) {
+    vulnerable = true;
+  } else if (major === 23) {
+    vulnerable = true;
+  } else if (major === 24 && compareSemver(cleanVer, '24.22.1') < 0) {
+    vulnerable = true;
+  } else if (major === 25) {
+    vulnerable = true;
+  } else if (major === 26 && compareSemver(cleanVer, '26.12.1') < 0) {
+    vulnerable = true;
+  }
+
+  return {
+    vulnerable,
+    version: cleanVer,
+    detail: vulnerable
+      ? `Node.js v${cleanVer} is vulnerable to CVE-2026-111497 (Brotli Decompression RCE)`
+      : `Node.js v${cleanVer} is patched against Node2Shell (CVE-2026-111497)`,
+  };
+}
+
+export function evaluateBunBrotliRisk(versionStr: string): SecurityRiskEvaluation {
+  const cleanVer = String(versionStr).replace(/^v/, '').trim();
+  const vulnerable = compareSemver(cleanVer, '1.4.4') < 0;
+  return {
+    vulnerable,
+    version: cleanVer,
+    detail: vulnerable
+      ? `Bun v${cleanVer} is vulnerable to CVE-2026-111497 (< 1.4.4)`
+      : `Bun v${cleanVer} is patched against CVE-2026-111497 (>= 1.4.4)`,
+  };
+}
+
+export function evaluatePythonBrotliRisk(pipJsonOrList: unknown): PythonBrotliRiskEvaluation {
+  const targetPackages = ['brotli', 'brotlicffi'];
+  const found: Array<{ name: string; version: string }> = [];
+
+  if (typeof pipJsonOrList === 'string') {
+    const trimmed = pipJsonOrList.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (item && typeof item === 'object' && 'name' in item && 'version' in item) {
+              const name = String((item as { name: string }).name).toLowerCase();
+              if (targetPackages.includes(name)) {
+                found.push({ name, version: String((item as { version: string }).version) });
+              }
+            }
+          }
+        }
+      } catch {
+        // Fallback to text parsing
+      }
+    }
+    if (found.length === 0) {
+      const lines = trimmed.split('\n');
+      for (const line of lines) {
+        const match = line.match(/^\s*(brotli(?:cffi)?)\s*(?:==|\s+|\(|\:)\s*([0-9a-zA-Z.]+)/i);
+        if (match && match[1] && match[2]) {
+          found.push({ name: match[1].toLowerCase(), version: match[2].replace(/[)]/g, '') });
+        }
+      }
+    }
+  } else if (Array.isArray(pipJsonOrList)) {
+    for (const item of pipJsonOrList) {
+      if (item && typeof item === 'object' && 'name' in item && 'version' in item) {
+        const name = String((item as { name: string }).name).toLowerCase();
+        if (targetPackages.includes(name)) {
+          found.push({ name, version: String((item as { version: string }).version) });
+        }
+      }
+    }
+  } else if (pipJsonOrList && typeof pipJsonOrList === 'object') {
+    for (const [key, val] of Object.entries(pipJsonOrList as Record<string, unknown>)) {
+      const name = key.toLowerCase();
+      if (targetPackages.includes(name)) {
+        found.push({ name, version: String(val) });
+      }
+    }
+  }
+
+  const packageRisks: PythonBrotliPackageRisk[] = found.map((pkg) => {
+    const isVuln = compareSemver(pkg.version, '1.2.1') < 0;
+    return {
+      name: pkg.name,
+      version: pkg.version,
+      vulnerable: isVuln,
+    };
+  });
+
+  const vulnerable = packageRisks.some((p) => p.vulnerable);
+  const detail = vulnerable
+    ? `Vulnerable Python Brotli packages found (< 1.2.1): ${packageRisks
+        .filter((p) => p.vulnerable)
+        .map((p) => `${p.name}@${p.version}`)
+        .join(', ')}`
+    : packageRisks.length > 0
+    ? `Python Brotli packages are patched (>= 1.2.1): ${packageRisks
+        .map((p) => `${p.name}@${p.version}`)
+        .join(', ')}`
+    : 'No vulnerable Python Brotli packages detected';
+
+  return {
+    vulnerable,
+    packages: packageRisks,
+    detail,
+  };
 }
 
 export async function runPdfInspector(filePath: string): Promise<void> {
@@ -78,20 +221,51 @@ export async function runLocalDoctorV5(): Promise<void> {
   const platform = os.platform();
   const release = os.release();
 
-  const nodeVer = process.version.replace(/^v/, '');
-  const major = parseInt(nodeVer.split('.')[0], 10);
-  let nodeVulnerable = false;
-
-  if (major < 22) nodeVulnerable = true;
-  else if (major === 22 && compareSemver(nodeVer, '22.23.4') < 0) nodeVulnerable = true;
-  else if (major === 24 && compareSemver(nodeVer, '24.22.1') < 0) nodeVulnerable = true;
-  else if (major === 26 && compareSemver(nodeVer, '26.12.1') < 0) nodeVulnerable = true;
-
-  if (nodeVulnerable) {
+  const nodeRisk = evaluateNode2ShellRisk(process.version);
+  if (nodeRisk.vulnerable) {
     issuesFound++;
-    console.log(`  ${C.red}✖ [CRITICAL NODE2SHELL RCE]${C.reset} Node.js v${nodeVer} is vulnerable to CVE-2026-111497 (Brotli Decompression RCE)!`);
+    console.log(`  ${C.red}✖ [CRITICAL NODE2SHELL RCE]${C.reset} ${nodeRisk.detail}!`);
   } else {
-    console.log(`  ${C.green}✓ [Node.js Runtime]${C.reset} Node.js v${nodeVer} is patched against Node2Shell (CVE-2026-111497)`);
+    console.log(`  ${C.green}✓ [Node.js Runtime]${C.reset} ${nodeRisk.detail}`);
+  }
+
+  // Optional local checks: Bun (< 1.4.4)
+  try {
+    const bunVerRaw = execFileSync('bun', ['--version'], {
+      encoding: 'utf8',
+      timeout: 2000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (bunVerRaw) {
+      const bunRisk = evaluateBunBrotliRisk(bunVerRaw);
+      if (bunRisk.vulnerable) {
+        issuesFound++;
+        console.log(`  ${C.red}✖ [CRITICAL BUN BROTLI RCE]${C.reset} ${bunRisk.detail}!`);
+      } else {
+        console.log(`  ${C.green}✓ [Bun Runtime]${C.reset} ${bunRisk.detail}`);
+      }
+    }
+  } catch {
+    // Bun binary not present or timed out - optional check
+  }
+
+  // Optional local checks: Python brotli / brotlicffi (< 1.2.1)
+  try {
+    const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
+    const pipOut = execFileSync(pythonBin, ['-m', 'pip', 'list', '--format=json'], {
+      encoding: 'utf8',
+      timeout: 2000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const pythonRisk = evaluatePythonBrotliRisk(pipOut);
+    if (pythonRisk.vulnerable) {
+      issuesFound++;
+      console.log(`  ${C.red}✖ [CRITICAL PYTHON BROTLI RCE]${C.reset} ${pythonRisk.detail}!`);
+    } else if (pythonRisk.packages.length > 0) {
+      console.log(`  ${C.green}✓ [Python Brotli]${C.reset} ${pythonRisk.detail}`);
+    }
+  } catch {
+    // Python/pip not present or timed out - optional check
   }
 
   if (platform === 'linux') {

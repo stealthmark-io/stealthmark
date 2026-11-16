@@ -1,4 +1,4 @@
-FROM node:22-slim AS builder
+FROM node:22.23.5-slim AS builder
 WORKDIR /app
 COPY package*.json turbo.json ./
 COPY apps/web/package.json apps/web/
@@ -11,7 +11,7 @@ RUN npm ci || npm install --legacy-peer-deps
 COPY . .
 RUN npx turbo run build --filter=@stealthmark/web
 
-FROM node:22-slim
+FROM node:22.23.5-slim
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/package*.json ./

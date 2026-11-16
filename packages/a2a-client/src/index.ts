@@ -107,6 +107,7 @@ export class A2AClient {
     const res = await fetch(url, {
       headers: {
         Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
         ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
       },
       signal: AbortSignal.timeout(this.timeoutMs),
@@ -146,6 +147,7 @@ export class A2AClient {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
         ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
       },
       body: JSON.stringify(payload),
@@ -195,6 +197,7 @@ export class A2AClient {
     const res = await fetch(url, {
       headers: {
         Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
         ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
       },
       signal: AbortSignal.timeout(this.timeoutMs),

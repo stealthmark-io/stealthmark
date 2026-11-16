@@ -12,9 +12,10 @@ const stages = dockerfile.split(/^FROM /m).slice(1)
 const runtimeStage = stages[stages.length - 1]
 
 describe('API container image', () => {
-  it('builds in one stage and ships a separate runtime stage', () => {
+  it('builds in one stage and ships a separate runtime stage pinned to patched Node.js 22.23.5+', () => {
     expect(stages).toHaveLength(2)
-    expect(stages[0]).toMatch(/^node:22-slim AS builder/)
+    expect(stages[0]).toMatch(/^node:22\.23\.5-slim AS builder/)
+    expect(runtimeStage).toMatch(/^node:22\.23\.5-slim$/m)
   })
 
   it('runs the compiled output with plain node as a non-root user', () => {

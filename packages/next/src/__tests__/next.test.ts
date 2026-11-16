@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { createHmac, randomBytes } from 'node:crypto';
+import {
+  BROTLI_BLOCK_BODY,
+  BROTLI_BLOCK_STATUS,
+  SAFE_OUTBOUND_ACCEPT_ENCODING,
+} from '@stealthmark/core';
 import { stealthmark, withStealthMark } from '../middleware.js';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -665,5 +670,73 @@ describe('dotfile policy', () => {
     const wp = evaluateAgentBehavior('/wp-admin/admin-ajax.php?action=uo_login_action&email=admin', new Headers());
     expect(wp.classification).toBe('MALICIOUS_AGENT_BOTNET');
     expect(wp.matchedSignatures).toContain('WP_CRITICAL_PLUGIN_EXPLOIT_WAVE_CVE_2026_118235_119096');
+  });
+
+  describe('CVE-2026-111497 inbound brotli payload blocking (HTTP 415)', () => {
+    const config = { siteName: 'Test Brotli Next' };
+
+    it.each(['br', 'gzip, br', 'x-brotli'])(
+      'stealthmark(): blocks inbound brotli payload (%s) with status 415',
+      async (encoding) => {
+        const headers = new Headers();
+        headers.set('host', 'example.com');
+        headers.set('content-encoding', encoding);
+        const req = {
+          headers,
+          nextUrl: { pathname: '/api/upload' },
+          method: 'POST',
+        };
+
+        const mw = stealthmark(config);
+        const res = await mw(req);
+        expect(res).toBeDefined();
+        expect(res?.status).toBe(BROTLI_BLOCK_STATUS);
+        expect(res?.headers.get('content-type')).toBe('application/json; charset=utf-8');
+        expect(res?.headers.get('accept-encoding')).toBe(SAFE_OUTBOUND_ACCEPT_ENCODING);
+        expect(res?.headers.get('cache-control')).toBe('no-store');
+
+        const body = await res?.json();
+        expect(body).toEqual(BROTLI_BLOCK_BODY);
+      }
+    );
+
+    it('withStealthMark(): blocks inbound brotli payload with 415 before handler runs', async () => {
+      const handler = vi.fn(() => new Response('ok'));
+      const mw = withStealthMark(handler, config);
+
+      const headers = new Headers();
+      headers.set('host', 'example.com');
+      headers.set('content-encoding', 'br');
+      const req = {
+        headers,
+        nextUrl: { pathname: '/api/upload' },
+        method: 'POST',
+      };
+
+      const res = await mw(req);
+      expect(handler).not.toHaveBeenCalled();
+      expect(res?.status).toBe(415);
+      expect(res?.headers.get('accept-encoding')).toBe(SAFE_OUTBOUND_ACCEPT_ENCODING);
+      const body = await res?.json();
+      expect(body).toEqual(BROTLI_BLOCK_BODY);
+    });
+
+    it('allows normal gzip requests without 415 block', async () => {
+      const handler = vi.fn(() => new Response('ok'));
+      const mw = withStealthMark(handler, config);
+
+      const headers = new Headers();
+      headers.set('host', 'example.com');
+      headers.set('content-encoding', 'gzip');
+      const req = {
+        headers,
+        nextUrl: { pathname: '/api/upload' },
+        method: 'POST',
+      };
+
+      const res = await mw(req);
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(res?.status).toBe(200);
+    });
   });
 });

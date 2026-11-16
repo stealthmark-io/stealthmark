@@ -61,6 +61,7 @@ export async function extractWithScrapling(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
       },
       body: JSON.stringify({
         url: params.url,
@@ -134,6 +135,9 @@ export async function checkScraplingHealth(): Promise<{
 }> {
   try {
     const res = await fetch(`${config.SCRAPLING_SERVICE_URL}/health`, {
+      headers: {
+        'Accept-Encoding': 'gzip, deflate',
+      },
       signal: AbortSignal.timeout(2000),
     })
     if (res.ok) {
