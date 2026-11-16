@@ -43,7 +43,7 @@ function names(tools: Array<{ name: string }>): string[] {
   return tools.map((tool) => tool.name);
 }
 
-describe('MCP surface (v5.1.2)', () => {
+describe('MCP surface (v7.0.0)', () => {
   let db: FakeSupabase;
 
   beforeEach(() => {
@@ -72,7 +72,7 @@ describe('MCP surface (v5.1.2)', () => {
 
     it('reports the public scope on initialize', async () => {
       const body = await (await POST(rpc('initialize'))).json();
-      expect(body.result.serverInfo).toMatchObject({ version: '5.1.2', surfaceScope: 'public_discovery_only' });
+      expect(body.result.serverInfo).toMatchObject({ version: '7.0.0', surfaceScope: 'public_discovery_only' });
     });
 
     it('answers tools/call with 401 and JSON-RPC code -32001', async () => {

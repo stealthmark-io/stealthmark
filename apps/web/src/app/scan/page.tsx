@@ -164,9 +164,11 @@ async function generatorErrorMessage(res: Response): Promise<string> {
 const QUICK_TARGETS = ['stealthmark.io', 'openai.com', 'anthropic.com', 'google.com', 'cloudflare.com', 'vercel.com'];
 
 const NEXT_CODE_SAMPLE = `// middleware.ts — StealthMark October 2026 4-Layer Edge Shield
-import { withStealthMark, sanitizeAndNormalizeRequest, evaluateAgentBehavior } from "@stealthmark/next";
+// Usage reporting reads STEALTHMARK_API_KEY from the environment.
+import { NextResponse } from "next/server";
+import { withStealthMark } from "@stealthmark/next";
 
-export default withStealthMark(middleware, {
+export default withStealthMark(() => NextResponse.next(), {
   siteName: "Production Perimeter",
   dotfiles: "block", // Enforces 403 on /.env, /.git, and October 2026 CVE probes
 });`;

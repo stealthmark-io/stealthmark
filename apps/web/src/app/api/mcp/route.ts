@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     name: 'stealthmark-a2a-mcp',
-    version: '5.1.2',
+    version: '7.0.0',
     protocol: 'mcp-streamable-http',
     surfaceScope: isAuthenticated ? 'authenticated' : 'public_discovery_only',
     skillManifest: 'https://stealthmark.io/skill.md',
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
         protocolVersion: '2025-03-26',
         serverInfo: {
           name: 'stealthmark-a2a-mcp',
-          version: '5.1.2',
+          version: '7.0.0',
           surfaceScope: isAuthenticated ? 'authenticated' : 'public_discovery_only',
         },
         capabilities: { tools: { listChanged: false } },

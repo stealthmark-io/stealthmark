@@ -8,9 +8,14 @@ import { SDK_NPM_URL } from "@/lib/site";
 import { CtaButtons } from "./Cta";
 import { SectionHeading } from "./SectionHeading";
 
-const NEXT_USAGE = `import { withStealthMark } from "@stealthmark/next";
+const NEXT_USAGE = `// middleware.ts. Usage reporting reads STEALTHMARK_API_KEY from the environment.
+import { NextResponse } from "next/server";
+import { withStealthMark } from "@stealthmark/next";
 
-export default withStealthMark(middleware, { siteName: "My Site", agentPolicy: "observe" });`;
+export default withStealthMark(() => NextResponse.next(), {
+  siteName: "My Site",
+  agentPolicy: "observe",
+});`;
 
 export function InstallSection() {
   const { t } = useLanguage();
