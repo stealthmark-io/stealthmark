@@ -223,24 +223,24 @@ describe('Clean Metrics, Developer Plan Defaults, Domain Connection & Onboarding
       const fake = createFakeSupabase(domainsResolver(null));
       dbState.client = fake.client;
 
-      const res = await domainsPost(domainRequest({ domain: 'https://www.democv.example.com/', name: 'DemoCV Operations' }));
+      const res = await domainsPost(domainRequest({ domain: 'https://www.atsify-ai.com/', name: 'ATSify Operations' }));
       expect(res.status).toBe(201);
       const data = await res.json();
 
       expect(data.success).toBe(true);
-      expect(data.domain).toBe('www.democv.example.com');
+      expect(data.domain).toBe('www.atsify-ai.com');
       expect(data.organizationId).toBe(ORG_ID);
       expect(data.status).toBe('pending');
-      expect(data.verification.host).toBe('_stealthmark-verify.www.democv.example.com');
+      expect(data.verification.host).toBe('_stealthmark-verify.www.atsify-ai.com');
       expect(data.verification.value).toMatch(/^sm-verify-[0-9a-f]{32}$/);
       expect(data.apiKey.key).toMatch(/^sk_live_/);
       expect(data.gateway.proxyUrl).toBe('https://gateway.stealthmark.io');
-      expect(data.gateway.upstream).toBe('https://www.democv.example.com');
+      expect(data.gateway.upstream).toBe('https://www.atsify-ai.com');
 
       const siteInsert = fake.calls.find((c) => c.table === 'registered_sites' && c.method === 'insert');
       expect(siteInsert?.args[0]).toMatchObject({
         org_id: ORG_ID,
-        domain: 'www.democv.example.com',
+        domain: 'www.atsify-ai.com',
         status: 'pending',
         dns_verified: false,
       });
@@ -257,7 +257,7 @@ describe('Clean Metrics, Developer Plan Defaults, Domain Connection & Onboarding
 
       const keyInsert = fake.calls.find((c) => c.table === 'api_keys' && c.method === 'insert');
       expect((keyInsert?.args[0] as { scopes: string[] }).scopes).toEqual(['usage:ingest']);
-      expect(JSON.stringify(data)).not.toContain('agent_autodev_001');
+      expect(JSON.stringify(data)).not.toContain('agent_hermes_001');
       expect(data.gateway).not.toHaveProperty('handshakeHeader');
     });
 

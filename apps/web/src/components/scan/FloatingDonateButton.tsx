@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, type Ref } from 'react';
-import { usePathname } from 'next/navigation';
 import { Check, Copy, ExternalLink, Heart, TriangleAlert, X } from 'lucide-react';
 import { CRYPTO_WALLETS, DONATION_OPTIONS } from '@/lib/offer';
 
@@ -20,16 +19,11 @@ const PANEL_ID = 'donate-panel';
 const COPY_RESET_MS = 2000;
 const COPY_LABEL = { idle: 'Copy', copied: 'Copied', failed: 'Select it' } as const;
 
-/**
- * Where the pill floats. The landing pins the StealthMascot bubble to bottom-6 right-6, so there
- * the pill stacks above it and the panel gives up that height to stay clear of the sticky navbar.
- */
 const LAYOUT = {
   corner: {
-    wrapper: 'bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 sm:bottom-6 sm:right-6',
+    wrapper: 'bottom-[max(0.875rem,env(safe-area-inset-bottom))] right-3 sm:bottom-6 sm:right-6',
     panel: 'max-h-[calc(100dvh-10rem)]',
   },
-  aboveMascot: { wrapper: 'bottom-24 right-6', panel: 'max-h-[calc(100dvh-14.5rem)]' },
 } as const;
 
 function copyStatus(copyState: CopyState, id: DonationNetworkId): keyof typeof COPY_LABEL {
@@ -135,7 +129,7 @@ export function DonationPanel({ copyState, onCopy, onClose, maxHeight = LAYOUT.c
 }
 
 export function FloatingDonateButton() {
-  const layout = usePathname() === '/' ? LAYOUT.aboveMascot : LAYOUT.corner;
+  const layout = LAYOUT.corner;
   const [open, setOpen] = useState(false);
   const [copyState, setCopyState] = useState<CopyState>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -204,7 +198,7 @@ export function FloatingDonateButton() {
         onClick={() => setOpen((isOpen) => !isOpen)}
         aria-expanded={open}
         aria-controls={open ? PANEL_ID : undefined}
-        className="flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 px-4 py-2.5 text-sm font-bold text-black shadow-[0_0_25px_rgba(16,185,129,0.45)] transition hover:scale-105 hover:shadow-[0_0_35px_rgba(16,185,129,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 motion-reduce:transition-none motion-reduce:hover:scale-100"
+        className="flex items-center gap-1.5 sm:gap-2 rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-bold text-black shadow-[0_0_25px_rgba(16,185,129,0.45)] transition hover:scale-105 hover:shadow-[0_0_35px_rgba(16,185,129,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 motion-reduce:transition-none motion-reduce:hover:scale-100"
       >
         <span className="relative flex h-4 w-4 items-center justify-center" aria-hidden="true">
           {!open && <span className="absolute inline-flex h-full w-full rounded-full bg-white/70 motion-safe:animate-ping" />}

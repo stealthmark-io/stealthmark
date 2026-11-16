@@ -1,8 +1,8 @@
 import { vi } from 'vitest';
 import type { MakeDirectoryOptions, Mode, PathLike, PathOrFileDescriptor, WriteFileOptions } from 'node:fs';
 
-// scan/audit caches gateway reports in this directory; tests must neither read nor overwrite the real cache.
-const AUDIT_CACHE_DIR = '/tmp/stealthmark_audit_cache_v2';
+// scan/audit caches gateway reports in a versioned directory with this prefix; tests must neither read nor overwrite it.
+const AUDIT_CACHE_DIR = '/tmp/stealthmark_audit_cache_';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();

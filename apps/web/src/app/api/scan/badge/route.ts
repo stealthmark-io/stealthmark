@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
     headers: {
       'Content-Type': 'image/svg+xml; charset=utf-8',
       'Cache-Control': verified ? 'public, max-age=3600, s-maxage=3600' : 'public, max-age=60, s-maxage=60',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
       'X-Content-Type-Options': 'nosniff',
     },
   });

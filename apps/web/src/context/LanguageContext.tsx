@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useSyncExternalStore } from 'react';
 
 import { LANDING_COPY, type LandingCopy } from './landingCopy';
-import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT } from '@/lib/readiness-report';
 
 export type Language = 'en' | 'es' | 'pt';
 
@@ -75,14 +75,14 @@ export const DICTIONARIES: Record<Language, Translations> = {
       pricing: 'Pricing',
       docs: 'Docs',
       launchConsole: 'Launch Console',
-      tickerStatus: '60-POINT SURFACE AUDIT LIVE',
+      tickerStatus: `${SCAN_CHECK_COUNT}-POINT SURFACE AUDIT LIVE`,
       tickerDesc: 'Instant passive cybersecurity, CVE-2026-111497 (Brotli/Node2Shell), OWASP Top 10:2025 & secret-leak reconnaissance. Zero registration.',
     },
     hero: {
       pill: 'Two-line install · No DNS change · Same page for humans',
       h1Part1: "Your website wasn't built for AI agents.",
       h1Part2: 'StealthMark was.',
-      desc: `The control layer between your website and AI agents. Audit your domain across ${SCAN_CHECK_COUNT} perimeter, CVE, DNS, and AI-surface checks in seconds—or install the SDK to identify AI agents, set what they can access, and publish machine-readable manifests.`,
+      desc: `The control layer between your website and AI agents. Audit your domain across ${SCAN_MEASURED_COUNT} measured perimeter, CVE, DNS, and AI-surface checks in seconds—or install the SDK to identify AI agents, set what they can access, and publish machine-readable manifests.`,
       bento1Title: 'Detect',
       bento1Desc: 'Who is reading your site',
       bento2Title: 'Observe',
@@ -132,7 +132,7 @@ export const DICTIONARIES: Record<Language, Translations> = {
       pricing: 'Precios',
       docs: 'Docs',
       launchConsole: 'Abrir Consola',
-      tickerStatus: 'AUDITORÍA DE 60 PUNTOS ACTIVA',
+      tickerStatus: `AUDITORÍA DE ${SCAN_CHECK_COUNT} PUNTOS ACTIVA`,
       tickerDesc: 'Diagnóstico pasivo de ciberseguridad, CVE-2026-111497 (Brotli/Node2Shell), OWASP Top 10:2025 y fugas de secretos. Sin registro.',
     },
     hero: {
@@ -189,7 +189,7 @@ export const DICTIONARIES: Record<Language, Translations> = {
       pricing: 'Preços',
       docs: 'Docs',
       launchConsole: 'Abrir Console',
-      tickerStatus: 'AUDITORIA DE 60 PONTOS ATIVA',
+      tickerStatus: `AUDITORIA DE ${SCAN_CHECK_COUNT} PONTOS ATIVA`,
       tickerDesc: 'Diagnóstico passivo de cibersegurança, CVE-2026-111497 (Brotli/Node2Shell), OWASP Top 10:2025 e vazamentos. Sem cadastro.',
     },
     hero: {
@@ -253,26 +253,56 @@ const LanguageContext = createContext<LanguageContextType>({
 
 const STORAGE_KEY = 'stealthmark_lang';
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('en');
+const listeners = new Set<() => void>();
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY) as Language | null;
-      if (stored && (stored === 'en' || stored === 'es' || stored === 'pt')) {
-        setLanguageState(stored);
-      }
-    } catch {
-      // Ignore localStorage read errors in private browsing
+function subscribe(callback: () => void): () => void {
+  listeners.add(callback);
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) {
+      callback();
     }
-  }, []);
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', handleStorage);
+  }
+  return () => {
+    listeners.delete(callback);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('storage', handleStorage);
+    }
+  };
+}
+
+function getSnapshot(): Language {
+  if (typeof window === 'undefined') {
+    return 'en';
+  }
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'en' || stored === 'es' || stored === 'pt') {
+      return stored;
+    }
+  } catch {
+    // Ignore localStorage read errors in private browsing
+  }
+  return 'en';
+}
+
+function getServerSnapshot(): Language {
+  return 'en';
+}
+
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const language = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const setLanguage = (newLang: Language) => {
-    setLanguageState(newLang);
     try {
       localStorage.setItem(STORAGE_KEY, newLang);
     } catch {
       // Ignore localStorage write errors
+    }
+    for (const listener of listeners) {
+      listener();
     }
   };
 

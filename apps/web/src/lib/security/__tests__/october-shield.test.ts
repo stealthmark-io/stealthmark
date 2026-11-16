@@ -43,6 +43,38 @@ describe('StealthMark Security Shield - Octubre 2026 Payloads', () => {
       expect(res.isBlocked).toBe(true);
       expect(res.anomalies).toContain('CLOUD_METADATA_SSRF_PROBE');
     });
+
+    it('bloquea triple-encoding, separadores backslash y variantes SSRF metadata en decimal, hex, IPv6-mapped y 100.100.100.200', () => {
+      const tripleRes = sanitizeAndNormalizeRequest(
+        'https://stealthmark.io/%25255fnext/%25256dcp',
+        'stealthmark.io'
+      );
+      expect(tripleRes.isBlocked).toBe(true);
+      expect(tripleRes.anomalies).toContain('DOUBLE_HEX_ENCODING_CVE_2026_59083');
+      expect(tripleRes.anomalies).toContain('TRIPLE_HEX_ENCODING_EVASION');
+
+      const backslashRes = sanitizeAndNormalizeRequest('/api\\admin\\keys', 'stealthmark.io');
+      expect(backslashRes.isBlocked).toBe(true);
+      expect(backslashRes.anomalies).toContain('BACKSLASH_PATH_SEPARATOR_ANOMALY');
+      expect(backslashRes.normalizedPath).toBe('/api/admin/keys');
+
+      const encodedBackslashRes = sanitizeAndNormalizeRequest('/api%255cadmin', 'stealthmark.io');
+      expect(encodedBackslashRes.isBlocked).toBe(true);
+      expect(encodedBackslashRes.anomalies).toContain('BACKSLASH_PATH_SEPARATOR_ANOMALY');
+
+      const ssrfTargets = [
+        '/proxy?target=http://2852039166/latest/meta-data/',
+        '/proxy?target=http://0xa9fea9fe/latest/meta-data/',
+        '/proxy?target=http://[::ffff:169.254.169.254]/latest/meta-data/',
+        '/proxy?target=http://[::ffff:a9fe:a9fe]/latest/meta-data/',
+        '/proxy?target=http://100.100.100.200/latest/meta-data/',
+      ];
+      for (const target of ssrfTargets) {
+        const check = sanitizeAndNormalizeRequest(target, 'stealthmark.io');
+        expect(check.isBlocked, target).toBe(true);
+        expect(check.anomalies, target).toContain('CLOUD_METADATA_SSRF_PROBE');
+      }
+    });
   });
 
   describe('Capa 2: Deteccion de Botnets Agenticas (Skynet / MONST3R-AI)', () => {
@@ -71,6 +103,22 @@ describe('StealthMark Security Shield - Octubre 2026 Payloads', () => {
       expect(res.classification).toBe('MALICIOUS_AGENT_BOTNET');
       expect(res.matchedSignatures).toContain('NEXT_SERVER_ACTION_DOS_CVE_2026_94482');
       expect(res.matchedSignatures).toContain('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497');
+    });
+
+    it('evalua codificaciones Brotli entrantes (br, gzip, br, x-brotli) sin falsos positivos en brace o gzip', () => {
+      // Casos positivos
+      for (const enc of ['br', 'gzip, br', 'x-brotli', 'brotli', 'gzip, x-brotli']) {
+        const headers = new Headers({ 'content-encoding': enc });
+        const res = evaluateAgentBehavior('/api/data', headers);
+        expect(res.matchedSignatures, `encoding ${enc} should be detected`).toContain('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497');
+      }
+
+      // Casos negativos (sin falso positivo)
+      for (const enc of ['gzip', 'deflate', 'brace', 'gzip, brace', 'identity']) {
+        const headers = new Headers({ 'content-encoding': enc });
+        const res = evaluateAgentBehavior('/api/data', headers);
+        expect(res.matchedSignatures, `encoding ${enc} should not match`).not.toContain('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497');
+      }
     });
 
     it('bloquea sondas CISA KEV contra Magento upload, GitLab CI lint, Ivanti Connect Secure, Cisco ASA/FTD y Palo Alto GlobalProtect (CVE-2026-48356 / CVE-2026-97229 / CVE-2026-118527 / CVE-2026-76418 / CVE-2026-0257)', () => {
@@ -156,6 +204,46 @@ describe('StealthMark Security Shield - Octubre 2026 Payloads', () => {
       });
       expect(res.valid).toBe(false);
       expect(res.reason).toBe('MCP_INVALID_TOKEN_AUDIENCE_CVE_2026_111771');
+    });
+
+    it('aplica fail-closed cuando Bearer no tiene estructura JWT de 3 partes o carece de payload.aud', () => {
+      const validHeader = Buffer.from(JSON.stringify({ alg: 'EdDSA', typ: 'JWT' })).toString('base64url');
+      const noAudPayload = Buffer.from(JSON.stringify({ sub: 'agent-123', iss: 'stealthmark.io' })).toString('base64url');
+      const missingAudJwt = `Bearer ${validHeader}.${noAudPayload}.sig123`;
+
+      expect(
+        validateMcpPayloadAndToken('{"jsonrpc":"2.0"}', missingAudJwt, {
+          expectedAudience: 'https://stealthmark.io/api/mcp',
+        })
+      ).toEqual({
+        valid: false,
+        reason: 'MCP_INVALID_TOKEN_AUDIENCE_CVE_2026_111771',
+      });
+
+      for (const malformedBearer of ['Bearer not-a-jwt-token', 'Bearer part1.part2', 'Bearer a.b.c.d', 'Bearer ']) {
+        expect(
+          validateMcpPayloadAndToken('{"jsonrpc":"2.0"}', malformedBearer, {
+            expectedAudience: 'https://stealthmark.io/api/mcp',
+          }),
+          malformedBearer
+        ).toEqual({
+          valid: false,
+          reason: 'MALFORMED_BEARER_TOKEN',
+        });
+      }
+
+      const algNoneHeader = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+      const validAudPayload = Buffer.from(
+        JSON.stringify({ sub: 'agent-123', aud: 'https://stealthmark.io/api/mcp' })
+      ).toString('base64url');
+      expect(
+        validateMcpPayloadAndToken('{"jsonrpc":"2.0"}', `Bearer ${algNoneHeader}.${validAudPayload}.sig`, {
+          expectedAudience: 'https://stealthmark.io/api/mcp',
+        })
+      ).toEqual({
+        valid: false,
+        reason: 'MALFORMED_BEARER_TOKEN',
+      });
     });
   });
 

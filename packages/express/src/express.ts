@@ -4,7 +4,15 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { createStealthMark, type StealthMarkConfig } from '@stealthmark/core';
-import { NEGOTIATED_CACHE_CONTROL, isManifestPath, meterAgentRequest, meterBlockedRequest, negotiatedVary } from './meter.js';
+import {
+  NEGOTIATED_CACHE_CONTROL,
+  isManifestPath,
+  meterAgentRequest,
+  meterBlockedRequest,
+  negotiatedVary,
+  normalizeHeadersRecord,
+  tryBlockExpressBrotli,
+} from './meter.js';
 
 export interface ExpressRequestLike {
   method?: string;
@@ -43,15 +51,13 @@ export function stealthmarkExpress(config: StealthMarkConfig) {
     res: ExpressResponseLike,
     next: ExpressNextFunction
   ): void {
+    const headersRecord = normalizeHeadersRecord(req.headers);
+    if (tryBlockExpressBrotli(headersRecord, res)) {
+      return;
+    }
+
     const rawPath = req.path || req.url || '/';
     const pathOnly = rawPath.split('?')[0];
-
-    const headersRecord: Record<string, string> = {};
-    for (const [key, value] of Object.entries(req.headers)) {
-      if (value !== undefined) {
-        headersRecord[key.toLowerCase()] = Array.isArray(value) ? value[0] : value;
-      }
-    }
 
     const agentDetection = sm.detect(headersRecord);
     const isWellKnown = isManifestPath(pathOnly);

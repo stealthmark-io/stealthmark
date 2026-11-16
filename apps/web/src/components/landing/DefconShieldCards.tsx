@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Shield, ShieldCheck } from 'lucide-react';
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT } from '@/lib/readiness-report';
 
 interface DefconCardInfo {
   level: number;
@@ -100,7 +101,7 @@ export function DefconShieldCards() {
           5 Defense Postures. Engineered for Zero-Trust Perimeters.
         </h2>
         <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-          From Grade A+ daily hardening (per-request CSP nonces and HSTS) to edge containment and incident lockdown. Every free 60-point audit (20 scans per domain) and Enterprise engagement maps to these 5 defensive postures.
+          From Grade A+ daily hardening (per-request CSP nonces and HSTS) to edge containment and incident lockdown. Every free {SCAN_CHECK_COUNT}-point audit (20 scans per domain) and Enterprise engagement maps to these 5 defensive postures.
         </p>
       </div>
 
@@ -173,7 +174,7 @@ export function DefconShieldCards() {
           href="/scan"
           className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold transition shrink-0 cursor-pointer"
         >
-          Audit Your Perimeter (60 Checks) →
+          Audit Your Perimeter ({SCAN_MEASURED_COUNT} Measured Checks) →
         </Link>
       </div>
     </section>

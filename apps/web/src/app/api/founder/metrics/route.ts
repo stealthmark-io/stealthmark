@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { isAdminEmail, isAuthorizedAdmin } from '@/lib/admin-auth';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { SAFE_OUTBOUND_ACCEPT_ENCODING } from '@stealthmark/core';
 
 const NO_STORE_HEADERS = {
   'Cache-Control': 'private, no-store, no-cache, must-revalidate',
@@ -13,6 +14,9 @@ const NO_STORE_HEADERS = {
 const PORTFOLIO_SITES = [
   { name: 'StealthMark Web & /scan', url: 'https://stealthmark.io' },
   { name: 'StealthMark Core API', url: 'https://api.stealthmark.io/health' },
+  { name: 'ATSify AI', url: 'https://atsify-ai.com' },
+  { name: 'OceanEye SAR DeepTech', url: 'https://oceaneye-ai.com' },
+  { name: 'Elite Web Solutions', url: 'https://elite-web-solutions.com' },
 ];
 
 async function isCallerFounder(req: NextRequest): Promise<boolean> {
@@ -136,10 +140,14 @@ export async function GET(req: NextRequest) {
       try {
         const res = await fetch(site.url, {
           method: 'GET',
-          headers: { 'User-Agent': 'StealthMarkHealthMonitor/1.0' },
+          headers: {
+            'User-Agent': 'StealthMarkHealthMonitor/1.0',
+            'Accept-Encoding': SAFE_OUTBOUND_ACCEPT_ENCODING,
+          },
           cache: 'no-store',
           signal: AbortSignal.timeout(6000),
         });
+        await res.body?.cancel().catch(() => undefined);
         return {
           name: site.name,
           url: site.url,

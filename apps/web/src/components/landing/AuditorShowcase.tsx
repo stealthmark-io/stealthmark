@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import {
   Shield,
-  Search,
   Globe,
-  ArrowRight,
   FileText,
   FileCode,
   Radio,
@@ -14,7 +12,7 @@ import {
   CheckCircle2,
   Lock,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FIX_PACK } from "@/lib/offer";
 import { SCAN_CHECK_COUNT } from "@/lib/readiness-report";
@@ -22,9 +20,9 @@ import { SCAN_CHECK_COUNT } from "@/lib/readiness-report";
 const AUDIT_PILLARS = [
   {
     icon: <Lock className="w-5 h-5 text-red-400" />,
-    title: "1. Shodan Ports & October 2026 CVEs",
-    desc: "Passive Shodan InternetDB lookup for exposed 3389 RDP, 1433 SQL, Redis, and MongoDB ports, plus active banner detection for October 2026 KEVs (Brotli CVE-2026-111497, Magento CVE-2026-48356, GitLab CVE-2026-97229, Ivanti CVE-2026-118527, PHP2Shell CVE-2026-109618).",
-    checks: ["3389 RDP & 1433 SQL detection", "Brotli, Magento & GitLab KEV recon", "One lookup, zero port scan"],
+    title: "1. Shodan Ports & October–November 2026 CVEs",
+    desc: "Passive Shodan InternetDB lookup for exposed 3389 RDP, 1433 SQL, Redis, and MongoDB ports, plus banner detection for October–November 2026 CVEs (Apache 2.4.71 CVE-2026-119618, Node.js 22.23.5/24.22.3/26.13.1 CVE-2026-111497, React 19.2.9 CVE-2026-126187, BookIt CVE-2026-62048, Flowise CVE-2026-40933, PraisonAI CVE-2026-44338, DB-GPT CVE-2026-77932, FreeSWITCH CVE-2026-116779).",
+    checks: ["3389 RDP & 1433 SQL detection", "Apache, Node.js & React CVE recon", "One lookup, zero port scan"],
   },
   {
     icon: <Globe className="w-5 h-5 text-cyan-400" />,
@@ -121,9 +119,9 @@ export function AuditorShowcase() {
               Export a 3-page Executive &amp; Forensic A4 PDF Report customized with your agency brand, plus Cloudflare WAF &amp; Google Cloud Armor rules and an edge Worker to block /.env, /.git and known scanners and enforce security headers (<strong className="text-emerald-300">{FIX_PACK.starterPriceLabel} USD</strong> one-time per domain).
             </p>
           </div>
-          <div className="p-2.5 rounded-lg bg-black/50 border border-white/10 font-mono text-xs text-slate-200 flex items-center justify-between">
-            <span>Executive Grade: A+ to F</span>
-            <span className="text-cyan-400 font-bold">3-Page A4 PDF</span>
+          <div className="p-2.5 rounded-lg bg-black/50 border border-white/10 font-mono text-xs text-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <span className="whitespace-nowrap">Executive Grade: A+ to F</span>
+            <span className="text-cyan-400 font-bold whitespace-nowrap">3-Page A4 PDF</span>
           </div>
         </div>
       </div>
@@ -141,11 +139,16 @@ export function AuditorShowcase() {
             Run a free {SCAN_CHECK_COUNT}-point domain scan with the full report and fixes, then unlock the Fix Pack for that domain.
           </p>
         </div>
-        <Link href="/scan" className="shrink-0 w-full sm:w-auto">
-          <Button size="md" className="w-full sm:w-auto rounded-lg font-semibold bg-[#F8FAFC] text-[#060709] hover:bg-white border-0 shadow-none">
-            <span>Open {SCAN_CHECK_COUNT}-Point Scanner</span>
-            <ExternalLink className="w-4 h-4 ml-1.5 text-[#060709]" />
-          </Button>
+        <Link
+          href="/scan"
+          className={buttonVariants({
+            size: "md",
+            className:
+              "w-full sm:w-auto shrink-0 rounded-lg font-semibold bg-[#F8FAFC] text-[#060709] hover:bg-white border-0 shadow-none",
+          })}
+        >
+          <span>Open {SCAN_CHECK_COUNT}-Point Scanner</span>
+          <ExternalLink className="w-4 h-4 ml-1.5 text-[#060709]" />
         </Link>
       </div>
     </section>

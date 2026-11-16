@@ -1,4 +1,7 @@
 import type { OwaspGate } from './owasp-gates';
+import { SCAN_NOT_ASSESSED_COUNT } from './scan-controls';
+
+export { SCAN_NOT_ASSESSED_COUNT };
 
 export interface AuditCheckItem {
   id: string;
@@ -143,13 +146,19 @@ export interface AuditReport {
   limitations: string[];
 }
 
-/** Distinct checks the gateway + Active Shield v2 audit runs on a reachable site (45 core + 15 Active Shield v2 checks). */
-export const SCAN_CHECK_COUNT = 60;
+/** Distinct checks the audit reports on a reachable site (45 core + 15 Active Shield v2 + 56 v6 checks). */
+export const SCAN_CHECK_COUNT = 116;
+
+/** Checks the scan measures from outside; the other SCAN_NOT_ASSESSED_COUNT need internal access and always report not_assessed. */
+export const SCAN_MEASURED_COUNT = SCAN_CHECK_COUNT - SCAN_NOT_ASSESSED_COUNT;
+
+/** How many of the checks the scan measures from outside and how many it reports not assessed. */
+export const SCAN_COVERAGE = `${SCAN_CHECK_COUNT} controls: ${SCAN_MEASURED_COUNT} measured from outside, ${SCAN_NOT_ASSESSED_COUNT} need internal access`;
 
 export const SECTION_TITLES: Record<string, { title: string; desc: string }> = {
   transport: {
     title: 'Transport & TLS',
-    desc: 'HTTPS availability, HTTP-to-HTTPS redirect, HSTS enforcement, and certificate authority trust',
+    desc: 'HTTPS availability, HTTP-to-HTTPS redirect, HSTS enforcement, certificate authority trust, certificate and CA key strength, Certificate Transparency, OCSP stapling, www certificate expiry, VoIP/SIP port isolation, outbound SMB/NetBIOS egress posture, and edge appliance management exposure',
   },
   dns: {
     title: 'DNS Security Records',
@@ -161,11 +170,11 @@ export const SECTION_TITLES: Record<string, { title: string; desc: string }> = {
   },
   ai_surface: {
     title: 'AI Discovery Surface',
-    desc: '/llms.txt context index, /.well-known/agent.json and mcp.json manifests, their caching and CORS, and Schema.org structured data',
+    desc: '/llms.txt context index, /.well-known/agent.json and mcp.json manifests, their caching and CORS, Schema.org structured data, OAuth resource and authorization server metadata, A2A agent card, exposed LLM gateways, Flowise/PraisonAI agent surfaces, vLLM inference telemetry, AI inference IPC ports, workspace policy exposure, and hidden agent directives',
   },
   headers: {
     title: 'Defense Headers',
-    desc: 'Security headers and CSP script quality, CORS, public /.env, /.git, API schemas and package manifests, secrets and non-production URLs in JS bundles, source maps, stack fingerprint and error traces, cache poisoning, session cookies, and session tokens in Web Storage without CSP',
+    desc: 'Security headers and CSP script quality, CORS, public /.env, /.git, API schemas and package manifests, secrets and non-production URLs in JS bundles, source maps, stack fingerprint and error traces, cache poisoning, session cookies, session tokens in Web Storage without CSP, leaked internal routing headers, PHP/Node.js/Apache runtime patch levels, mod_php isolation, WordPress plugin and Jenkins exposure, public CI/CD, deployment and lockfile manifests, container orchestrator and analytical store ports, and Atlassian/JetBrains management surfaces',
   },
 };
 

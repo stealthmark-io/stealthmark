@@ -27,7 +27,7 @@ import {
 import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from '@/components/landing/Footer';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CodeBlock } from '@/components/ui/code-block';
 import { ScanUnlockModal } from '@/components/scan/ScanUnlockModal';
@@ -42,6 +42,8 @@ import {
   AuditReport,
   AuditCheckItem,
   SCAN_CHECK_COUNT,
+  SCAN_MEASURED_COUNT,
+  SCAN_COVERAGE,
   SECTION_TITLES,
   generateMarkdownReport,
   downloadFile,
@@ -593,8 +595,10 @@ function ScanPageContent() {
 
   return (
     <div className="min-h-screen bg-[#060709] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-white relative bg-grid-pattern overflow-x-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] ambient-glow-purple pointer-events-none print:hidden" />
-      <div className="absolute top-60 left-1/4 w-[600px] h-[300px] ambient-glow-cyan pointer-events-none print:hidden" />
+      <div className="pointer-events-none fixed inset-0 overflow-hidden print:hidden" aria-hidden="true">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] ambient-glow-purple" />
+        <div className="absolute top-60 left-1/4 w-[600px] h-[300px] ambient-glow-cyan" />
+      </div>
 
       <div className="print:hidden">
         <Navbar />
@@ -614,7 +618,7 @@ function ScanPageContent() {
           <p className="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
             Non-intrusive external reconnaissance across {SCAN_CHECK_COUNT} security controls: OWASP Top 10:2025 gates,
             Shodan InternetDB exposed ports &amp; CVEs, TLS/eMudhra CA trust, DNS/DMARC, JS bundle secret leaks, and
-            2026 edge CVE signatures.
+            2026 edge CVE signatures. {SCAN_COVERAGE}.
           </p>
 
           {/* Search Input Bar */}
@@ -623,15 +627,15 @@ function ScanPageContent() {
               e.preventDefault();
               runAudit(domainInput);
             }}
-            className="pt-4 max-w-xl mx-auto"
+            className="pt-4 w-full max-w-xl mx-auto"
           >
-            <div className="relative flex items-center">
+            <div className="relative flex items-center w-full">
               <input
                 type="text"
                 value={domainInput}
                 onChange={(e) => setDomainInput(e.target.value)}
-                placeholder="example.com or https://example.com"
-                className="w-full pl-11 pr-28 py-3.5 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-white/20 focus:border-cyan-400/60 focus:bg-white/[0.06] text-sm text-white placeholder:text-slate-500 font-mono transition shadow-2xl focus:outline-none"
+                placeholder="example.com"
+                className="w-full min-w-0 pl-10 sm:pl-11 pr-24 sm:pr-28 py-3.5 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-white/20 focus:border-cyan-400/60 focus:bg-white/[0.06] text-sm text-white placeholder:text-slate-500 font-mono transition shadow-2xl focus:outline-none"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-4 pointer-events-none" />
               <Button
@@ -804,7 +808,7 @@ function ScanPageContent() {
                     Scan #{report.scan_quota?.used || FREE_SCANS_PER_DOMAIN + 1} Locked &middot; {FREE_SCANS_PER_DOMAIN} of {FREE_SCANS_PER_DOMAIN} Free Scans Used for {report.domain}
                   </span>
                   <span className="text-xs font-mono text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full">
-                    {report.scan_quota?.checks_evaluated || SCAN_CHECK_COUNT}/{SCAN_CHECK_COUNT} Controls Evaluated Just Now
+                    {SCAN_MEASURED_COUNT} of {SCAN_CHECK_COUNT} Controls Measured Just Now
                   </span>
                 </div>
 
@@ -933,13 +937,13 @@ function ScanPageContent() {
                   <div className="text-xs font-mono uppercase tracking-wider text-slate-500">
                     Readiness Report
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-2.5">
-                    <span>{report.domain}</span>
-                    <span className="text-xs font-mono font-normal text-red-300 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-full">
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white flex flex-wrap items-center gap-2.5">
+                    <span className="break-all">{report.domain}</span>
+                    <span className="text-xs font-mono font-normal text-red-300 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                       Live Signals
                     </span>
                     {isUnlocked && (
-                      <span className="text-xs font-mono font-semibold text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="text-xs font-mono font-semibold text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap shrink-0">
                         <Zap className="w-3 h-3 text-cyan-400" />
                         Full Report
                       </span>
@@ -1529,8 +1533,8 @@ function ScanPageContent() {
               {/* Enterprise Security & WAF Hardening Bridge (/enterprise) */}
               <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-950/50 via-purple-950/30 to-black border border-indigo-500/35 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="purple" className="uppercase font-mono text-[9px]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="purple" className="uppercase font-mono text-[9px] whitespace-normal sm:whitespace-nowrap text-left">
                       Enterprise Perimeter &amp; Cloud WAF Hardening
                     </Badge>
                     <span className="text-xs font-mono text-indigo-300">
@@ -1543,16 +1547,14 @@ function ScanPageContent() {
                 </div>
                 <Link
                   href="/enterprise"
-                  className="shrink-0"
+                  className={buttonVariants({
+                    variant: "secondary",
+                    size: "sm",
+                    className: "text-xs font-semibold border-indigo-500/40 text-indigo-200 hover:text-white cursor-pointer shrink-0 whitespace-nowrap",
+                  })}
                 >
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="text-xs font-semibold border-indigo-500/40 text-indigo-200 hover:text-white cursor-pointer"
-                  >
-                    <span>Request Enterprise Assessment</span>
-                    <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-                  </Button>
+                  <span>Request Enterprise Assessment</span>
+                  <ArrowRight className="w-3.5 h-3.5 ml-1.5 inline" />
                 </Link>
               </div>
 

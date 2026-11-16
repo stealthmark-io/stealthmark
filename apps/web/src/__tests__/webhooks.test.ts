@@ -154,10 +154,11 @@ describe('verifyStandardWebhook', () => {
   });
 
   it('rejects timestamps more than 5 minutes old or in the future and non-numeric timestamps', () => {
+    const nowMs = Date.now();
     for (const offset of [-301, 301]) {
-      const timestamp = nowSeconds(offset);
+      const timestamp = String(Math.floor(nowMs / 1000) + offset);
       expect(
-        verifyStandardWebhook({ ...base, timestamp, secret: SECRET, signatureHeader: sign(body, base.id, timestamp) }),
+        verifyStandardWebhook({ ...base, nowMs, timestamp, secret: SECRET, signatureHeader: sign(body, base.id, timestamp) }),
       ).toBe(false);
     }
     expect(

@@ -194,7 +194,7 @@ describe('Crypto Claim API (POST /api/billing/crypto/claim)', () => {
                 // Approval(address,address,uint256) signature
                 '8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925',
                 '000000000000000000000000attacker1234567890',
-                // Spender is the receiving wallet address
+                // Spender is Gastón's wallet address
                 '000000000000000000000000f916cf613ecf65390ff217cc15afa764563cad75',
               ],
               data: '0000000000000000000000000000000000000000000000000000000005f5e100', // 100 USDT
@@ -255,7 +255,7 @@ describe('Crypto Claim API (POST /api/billing/crypto/claim)', () => {
                   // Transfer(address,address,uint256) signature
                   'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
                   '000000000000000000000000sender123456789012',
-                  // Receiving wallet: 41f916cf613ecf65390ff217cc15afa764563cad75
+                  // Gastón's wallet: 41f916cf613ecf65390ff217cc15afa764563cad75
                   '000000000000000000000000f916cf613ecf65390ff217cc15afa764563cad75',
                 ],
                 data,
@@ -333,6 +333,49 @@ describe('Crypto Claim API (POST /api/billing/crypto/claim)', () => {
       expect(res.status).toBe(400);
       const body = await res.json();
       expect(body.error).toBe('validation_error');
+    });
+
+    it('succeeds with $9.00 in a multi-log Tron transaction where log 0 is a $0.01 dust transfer and log 1 is a valid $9.00 transfer', async () => {
+      // 0.01 USDT = 10,000 sun (6 decimals)
+      const dustData = (10_000).toString(16).padStart(64, '0');
+      // 9.00 USDT = 9,000,000 sun (6 decimals)
+      const validData = (9_000_000).toString(16).padStart(64, '0');
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+          receipt: { result: 'SUCCESS' },
+          log: [
+            {
+              address: '41a614f803b6fd780986a42c78ec9c7f77e6ded13c',
+              topics: [
+                'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                '000000000000000000000000sender123456789012',
+                '000000000000000000000000f916cf613ecf65390ff217cc15afa764563cad75',
+              ],
+              data: dustData,
+            },
+            {
+              address: '41a614f803b6fd780986a42c78ec9c7f77e6ded13c',
+              topics: [
+                'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                '000000000000000000000000sender123456789012',
+                '000000000000000000000000f916cf613ecf65390ff217cc15afa764563cad75',
+              ],
+              data: validData,
+            },
+          ],
+        }),
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const result = await cryptoVerifier.verifyTronPayment('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef');
+      expect(result.valid).toBe(true);
+      expect(result.amountUsd).toBe(9);
+      expect(result.creditsGranted).toBe(15_000);
+      expect(result.tokenSymbol).toBe('USDT-TRC20');
+      vi.unstubAllGlobals();
     });
   });
 

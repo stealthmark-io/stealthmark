@@ -20,6 +20,7 @@ _PHP_OLDEST_SUPPORTED = (8, 2)
 _NGINX_VERSION_RE = re.compile(r"\bnginx/(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
 _NODE_VERSION_RE = re.compile(r"\bNode(?:\.js)?/v?(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
 _BUN_VERSION_RE = re.compile(r"\bBun/(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
+_ENVOY_VERSION_RE = re.compile(r"\benvoy/(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
 _CAKEPHP_VERSION_RE = re.compile(r"\bCakePHP(?:/|\s+)(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
 _MUSEBOT_VERSION_RE = re.compile(r"\bMuseBot(?:/|\s+)(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
 _VSFTPD_VERSION_RE = re.compile(r"\bvsftpd(?:/|\s+)(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
@@ -112,6 +113,18 @@ def parse_tech_fingerprint(home: Optional[Fetched]) -> CheckItem:
         ver = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
         if ver < (1, 4, 4):
             outdated.append(f"Bun {ver[0]}.{ver[1]}.{ver[2]} (prior to CVE-2026-111497 Brotli 1.2.1 fix in Bun 1.4.4)")
+            break
+    for match in _ENVOY_VERSION_RE.finditer(hdr_banner):
+        ever = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+        if (
+            ever < (1, 36, 12)
+            or (ever[:2] == (1, 37) and ever[2] < 8)
+            or (ever[:2] == (1, 38) and ever[2] < 6)
+            or (ever[:2] == (1, 39) and ever[2] < 3)
+        ):
+            outdated.append(
+                f"envoy/{ever[0]}.{ever[1]}.{ever[2]} (prior to CVE-2026-111497 Brotli decompression patches in 1.36.12 / 1.37.8 / 1.38.6 / 1.39.3)"
+            )
             break
     banner_and_gen = f"{hdr_banner} {generator}"
     for match in _CAKEPHP_VERSION_RE.finditer(banner_and_gen):

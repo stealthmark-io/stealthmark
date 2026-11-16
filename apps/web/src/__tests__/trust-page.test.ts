@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import TrustPage from '../app/trust/page';
 import { metadata } from '../app/trust/layout';
-import { SCAN_CHECK_COUNT } from '../lib/readiness-report';
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT } from '../lib/readiness-report';
 import { FIX_PACK } from '../lib/offer';
 
 const BANNED_TERMS: readonly string[] = [
@@ -43,7 +43,7 @@ describe('/trust page (page body, excluding shared Navbar and Footer)', () => {
 
   it('states what the engine does and its safety boundaries', () => {
     expect(text).toContain('what the engine does');
-    expect(text).toContain(`executes ${SCAN_CHECK_COUNT} non-intrusive external checks`);
+    expect(text).toContain(`executes ${SCAN_MEASURED_COUNT} non-intrusive external checks`);
     expect(text).toContain('owasp top 10:2025');
     expect(text).toContain('strict safety boundaries');
     expect(text).toContain('never sends destructive, state-mutating, brute-force, or exploitation payloads');

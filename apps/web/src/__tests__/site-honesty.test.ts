@@ -18,8 +18,10 @@ import sitemap from '../app/sitemap';
 import { LEAD_HONEYPOT_FIELD } from '../lib/lead-fields';
 import { buildContentSecurityPolicy, CSP_REPORT_PATH } from '../lib/csp';
 import { CRYPTO_WALLETS, FIX_PACK, FLEET_DEFENSE } from '../lib/offer';
-import { ORGANIZATION_JSON_LD } from '../lib/site';
-import { SCAN_CHECK_COUNT } from '../lib/readiness-report';
+import { GITHUB_ORG_URL, LINKEDIN_COMPANY_URL, LINKEDIN_FOUNDER_URL, ORGANIZATION_JSON_LD, SITE_ORIGIN } from '../lib/site';
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT } from '../lib/readiness-report';
+import { NOT_ASSESSED_CONTROLS, SCAN_NOT_ASSESSED_COUNT } from '../lib/scan-controls';
+import { V6_CONTROLS, V6_MEASURED_IDS } from '../lib/scan-v6';
 import { CHECKS_OUTSIDE_OWASP, OWASP_GATES } from '../lib/owasp-gates';
 import { resetLeadRateLimits } from '../lib/lead-intake';
 import { endlessBodyRequest } from './helpers/chunked-body';
@@ -88,7 +90,7 @@ describe('shared footer and navbar', () => {
   it('points the docs links at /docs, never at a GitHub repository (the SDK repository is private)', () => {
     expect(footer).toContain('href="/docs"');
     expect(navbar).toContain('href="/docs"');
-    expect(footer + navbar).not.toMatch(/github\.com\/(?!stealthmark-io["'\/])/i);
+    expect(footer + navbar).not.toContain('github.com/Gastonchevarria');
     expect(textOf(navbar)).not.toMatch(/SLA/);
   });
 
@@ -121,9 +123,15 @@ describe('organization structured data', () => {
       '@context': 'https://schema.org',
       '@type': 'Organization',
       name: 'StealthMark',
-      url: 'https://stealthmark.io',
+      url: SITE_ORIGIN,
       foundingDate: '2026',
-      sameAs: ['https://stealthmark.io'],
+      sameAs: [SITE_ORIGIN, LINKEDIN_COMPANY_URL, GITHUB_ORG_URL],
+      founder: {
+        '@type': 'Person',
+        name: 'Marcos Cassasnovas',
+        url: LINKEDIN_FOUNDER_URL,
+        sameAs: [LINKEDIN_FOUNDER_URL],
+      },
     });
   });
 
@@ -188,6 +196,11 @@ describe('docs, landing and mascot copy', () => {
     expect(mascot).not.toMatch(/HYPER-VISION|100% HEALTHY|SPEC v2\.0|FLEET ESCROW|A2A MESH|PLAYGROUND LIVE/);
     expect(mascot).not.toMatch(/'\/os'|'\/network'|'\/playground'/);
   });
+
+  it('the hero sample card claims no perfect pass, which six unassessable checks rule out', () => {
+    const hero = read('components/landing/CybersecurityHero.tsx');
+    expect(hero).not.toMatch(/passCount: 60\b|60\/60/);
+  });
 });
 
 const WEB_ROOT = path.resolve(SRC, '..');
@@ -243,6 +256,31 @@ describe('one price per product', () => {
   });
 });
 
+describe('scan count copy', () => {
+  /** The retired 60-point / 100-point scanner, and any "N checks" phrase that counts the not-assessed controls as run. */
+  const STALE_OR_OVERCLAIMED =
+    /\b60[ -](?:pts?|puntos|pontos|points?|non-intrusive|controls|checks|passive)\b|\b60 passive\b|\b100[ -](?:pts?|points?)\b|\b100 checks\b|SCAN_CHECK_COUNT\}(?:-check\b| (?:[a-z-]+ ){0,3}(?:checks|chequeos|checagens)\b)/i;
+
+  it('no rendered source file names the old 60-point scan or counts unmeasured controls as checks', () => {
+    const files = [...sourceFiles(SRC), path.join(WEB_ROOT, 'public/skill.md')];
+    const hits = files.flatMap((file) =>
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .flatMap((line, index) => (STALE_OR_OVERCLAIMED.test(line) ? [`${path.relative(WEB_ROOT, file)}:${index + 1}`] : [])),
+    );
+    expect(hits).toEqual([]);
+  });
+
+  it('the navbar scan button and docs pillar badges match SCAN_CHECK_COUNT', () => {
+    const navText = textOf(markup(createElement(Navbar)));
+    expect(navText).toContain(`Run ${SCAN_CHECK_COUNT}-Pt Scan`);
+    const docs = read('app/docs/page.tsx');
+    const pillarCounts = [...docs.matchAll(/<Badge variant="info">(\d+) Controls<\/Badge>/g)].map((m) => Number(m[1]));
+    expect(pillarCounts).toEqual([25, 59, 32]);
+    expect(pillarCounts.reduce((a, b) => a + b, 0)).toBe(SCAN_CHECK_COUNT);
+  });
+});
+
 describe('scan check count', () => {
   const GATEWAY_DIR = path.resolve(WEB_ROOT, '../../infrastructure/gateway-lab/gateway');
   /** Fallback rows for an unreachable resolver or home page, and the StealthMark detection notice: none is a check. */
@@ -263,23 +301,65 @@ describe('scan check count', () => {
   }
 
   /** Rows the audit route adds for a reachable site (Active Shield v2). */
-  function webRowIds(): Set<string> {
-    const route = read('app/api/scan/audit/route.ts');
+  function shieldRowIds(): Set<string> {
+    const route = read('lib/audit-enrichment.ts');
     const body = route.slice(route.indexOf('async function enrichWithV2ActiveShieldChecks'), route.indexOf('function tagOwaspGates'));
     return new Set([...body.matchAll(/^\s*id: '([a-z0-9_]+)',/gm)].map((m) => m[1]));
   }
 
-  it('runs the 60 checks v5.1.1 advertises', () => {
-    expect(SCAN_CHECK_COUNT).toBe(60);
+  const v6RowIds = () => new Set(V6_CONTROLS.map(({ id }) => id));
+  const webRowIds = () => new Set([...shieldRowIds(), ...v6RowIds()]);
+
+  it('runs the 116 controls v6 advertises', () => {
+    expect(SCAN_CHECK_COUNT).toBe(116);
   });
 
-  it('advertises the gateway checks plus the Active Shield v2 checks, and every literal count matches', () => {
+  it('measures every check it does not list as needing internal access, and never both', () => {
+    const v6 = v6RowIds();
+    expect(v6.size).toBe(56);
+    const measured = new Set(V6_MEASURED_IDS);
+    const notAssessed = Object.keys(NOT_ASSESSED_CONTROLS);
+    expect([...measured].filter((id) => notAssessed.includes(id))).toEqual([]);
+    expect([...v6].filter((id) => !measured.has(id) && !notAssessed.includes(id))).toEqual([]);
+    expect([...measured].filter((id) => !v6.has(id))).toEqual([]);
+    const web = webRowIds();
+    expect(notAssessed.filter((id) => !web.has(id))).toEqual([]);
+    expect(SCAN_NOT_ASSESSED_COUNT).toBe(notAssessed.length);
+    expect(SCAN_MEASURED_COUNT).toBe(SCAN_CHECK_COUNT - notAssessed.length);
+  });
+
+  it('never promises more measured checks than the scan measures', () => {
+    const MEASURED = /\b(\d+)\s+(?:measured|medidos)\b/gi;
+    const INTERNAL = /\b(\d+)\s+(?:need|needing|require|requiring|requieren)\s+(?:internal|acceso interno)\b/gi;
+    const files = [
+      ...sourceFiles(SRC),
+      ...['public/skill.md', 'public/.well-known/mcp.json', 'public/.well-known/security.txt'].map((f) => path.join(WEB_ROOT, f)),
+    ];
+    const wrong = files.flatMap((file) => {
+      const text = readFileSync(file, 'utf8');
+      return [
+        ...[...text.matchAll(MEASURED)].filter((m) => Number(m[1]) !== SCAN_MEASURED_COUNT),
+        ...[...text.matchAll(INTERNAL)].filter((m) => Number(m[1]) !== SCAN_NOT_ASSESSED_COUNT),
+      ].map((m) => `${path.relative(WEB_ROOT, file)} ${m[0]}`);
+    });
+    expect(wrong).toEqual([]);
+    for (const file of ['public/skill.md', 'public/.well-known/mcp.json']) {
+      const text = readFileSync(path.join(WEB_ROOT, file), 'utf8');
+      expect(text, file).toContain(`${SCAN_MEASURED_COUNT} measured from outside`);
+      expect(text, file).toContain(`${SCAN_NOT_ASSESSED_COUNT} need internal access`);
+    }
+  });
+
+  it('advertises the gateway, Active Shield v2 and v6 checks, and every literal count matches', () => {
     const ids = gatewayRowIds();
     for (const id of NOT_CHECKS) ids.delete(id);
+    const shield = shieldRowIds();
+    const v6 = v6RowIds();
     const web = webRowIds();
+    expect(web.size).toBe(shield.size + v6.size);
     expect([...web].filter((id) => ids.has(id))).toEqual([]);
     expect(ids.size + web.size).toBe(SCAN_CHECK_COUNT);
-    const composition = `${ids.size} core + ${web.size} Active Shield v2 checks`;
+    const composition = `${ids.size} core + ${shield.size} Active Shield v2 + ${v6.size} v6 checks`;
     expect(read('lib/readiness-report.ts')).toContain(composition);
 
     // A literal count, as "23-point", "24 diagnostic findings" or "23 perimeter, CVE, DNS, and AI-surface checks", must match SCAN_CHECK_COUNT.
@@ -303,7 +383,7 @@ describe('scan check count', () => {
     }
   });
 
-  it('maps every gateway and Active Shield v2 row to one OWASP gate or to the list kept outside OWASP', () => {
+  it('maps every gateway, Active Shield v2 and v6 row to one OWASP gate or to the list kept outside OWASP', () => {
     const mapped = [...OWASP_GATES.flatMap((gate) => gate.checks), ...CHECKS_OUTSIDE_OWASP];
     expect(new Set(mapped).size).toBe(mapped.length);
     expect([...mapped].sort()).toEqual([...gatewayRowIds(), ...webRowIds()].sort());
@@ -343,7 +423,7 @@ describe('Fix Pack and edge generator copy', () => {
     /verified (?:nvd|cves?|shodan)|nvd\/shodan|active (?:shodan )?cves?|rce vector|origin ip leak check|fly\.io platform|\$22,500|ransomware downtime|incident response consultation|(?<!no )hsts preload|hsts >= ?1 year|a2a readiness|mcp capability descriptors|in 3 seconds/gi;
 
   it('adds no unsourced CVE, incident-cost, HSTS preload or non-running check claim beyond the v5.1.1 copy under review', () => {
-    expect(claims(SCAN_OVERCLAIM)).toEqual(['src/app/api/scan/audit/route.ts: HSTS preload']);
+    expect(claims(SCAN_OVERCLAIM)).toEqual([]);
   });
 });
 
@@ -448,6 +528,15 @@ describe('Content-Security-Policy (report only)', () => {
     expect(names).toContain('Content-Security-Policy');
     expect(names).not.toContain('Content-Security-Policy-Report-Only');
     expect(names).toContain('Strict-Transport-Security');
+    expect(names).toContain('Cross-Origin-Opener-Policy');
+    expect(names).toContain('Cross-Origin-Resource-Policy');
+    const globalSet = (sets ?? []).find((set) => set.source === '/:path*');
+    expect(globalSet?.headers.find((h) => h.key === 'Cross-Origin-Opener-Policy')?.value).toBe('same-origin');
+    expect(globalSet?.headers.find((h) => h.key === 'Cross-Origin-Resource-Policy')?.value).toBe('same-origin');
+    const badgeSet = (sets ?? []).find((set) => set.source === '/api/badge/:path*');
+    expect(badgeSet?.headers.find((h) => h.key === 'Cross-Origin-Resource-Policy')?.value).toBe('cross-origin');
+    const scanBadgeSet = (sets ?? []).find((set) => set.source === '/api/scan/badge');
+    expect(scanBadgeSet?.headers.find((h) => h.key === 'Cross-Origin-Resource-Policy')?.value).toBe('cross-origin');
     const csp = headers.find((header) => header.key === 'Content-Security-Policy')?.value ?? '';
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");

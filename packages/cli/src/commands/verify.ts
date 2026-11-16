@@ -3,6 +3,8 @@
 // Checks whether a live URL serves a StealthMark agent manifest
 // ═══════════════════════════════════════════════════════════════════
 
+import { SAFE_OUTBOUND_ACCEPT_ENCODING } from '@stealthmark/core';
+
 export interface VerificationCheck {
   name: string;
   passed: boolean;
@@ -31,7 +33,10 @@ function capabilityCount(count: number): string {
 
 function get(baseUrl: string, pathname: string, accept: string): Promise<Response> {
   return fetch(new URL(pathname, baseUrl), {
-    headers: { Accept: accept },
+    headers: {
+      Accept: accept,
+      'Accept-Encoding': SAFE_OUTBOUND_ACCEPT_ENCODING,
+    },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 }

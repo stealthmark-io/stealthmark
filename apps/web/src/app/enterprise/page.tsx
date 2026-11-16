@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Building2, CheckCircle2, FileText, Mail, ShieldCheck, Lock, Database } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from '@/components/landing/Footer';
-import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
+import { SCAN_CHECK_COUNT, SCAN_MEASURED_COUNT } from '@/lib/readiness-report';
 import { FIX_PACK, FREE_SCANS_PER_DOMAIN, UNLOCK_DAYS } from '@/lib/offer';
 
 export const metadata: Metadata = {
@@ -58,7 +58,7 @@ const TIER_ROWS: readonly TierRow[] = [
   {
     tier: `Free ${SCAN_CHECK_COUNT}-Point Recon`,
     price: '$0',
-    scope: `Automated ${SCAN_CHECK_COUNT}-check passive scan with OWASP Top 10:2025 gates, a score and the full report with fix recommendations, free for the first ${FREE_SCANS_PER_DOMAIN} scans of each domain`,
+    scope: `Automated passive scan measuring ${SCAN_MEASURED_COUNT} controls with OWASP Top 10:2025 gates, a score and the full report with fix recommendations, free for the first ${FREE_SCANS_PER_DOMAIN} scans of each domain`,
     turnaround: 'Instant (< 10 seconds)',
   },
   {
@@ -77,12 +77,14 @@ const TIER_ROWS: readonly TierRow[] = [
 
 export default function EnterprisePage() {
   return (
-    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden">
       <Navbar />
 
       <main className="flex-1">
         <section className="relative pt-28 pb-20 md:pt-36 md:pb-24 overflow-hidden border-b border-white/[0.06]">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-tr from-emerald-600/15 via-cyan-500/15 to-indigo-600/10 blur-[130px] pointer-events-none rounded-full" />
+          <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-tr from-emerald-600/15 via-cyan-500/15 to-indigo-600/10 blur-[130px] rounded-full" />
+          </div>
 
           <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10 space-y-8 text-center">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-mono font-semibold tracking-wider uppercase">
@@ -106,25 +108,24 @@ export default function EnterprisePage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
               <Link
                 href="/enterprise/contact"
-                className="w-full sm:w-auto"
+                className={buttonVariants({
+                  variant: "gradient",
+                  className: "w-full sm:w-auto text-sm font-bold py-4 px-8 shadow-xl shadow-cyan-500/20 cursor-pointer flex items-center justify-center gap-2",
+                })}
               >
-                <Button
-                  variant="gradient"
-                  className="w-full sm:w-auto text-sm font-bold py-4 px-8 shadow-xl shadow-cyan-500/20 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Mail className="w-4 h-4" aria-hidden />
-                  Request Custom Scope Brief
-                  <ArrowRight className="w-4 h-4 ml-1" aria-hidden />
-                </Button>
+                <Mail className="w-4 h-4" aria-hidden />
+                <span>Request Custom Scope Brief</span>
+                <ArrowRight className="w-4 h-4 ml-1" aria-hidden />
               </Link>
-              <Link href="/scan" className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto text-sm font-semibold py-4 px-7 border-white/15 text-slate-300 hover:bg-white/5 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <FileText className="w-4 h-4 text-cyan-400" aria-hidden />
-                  Run Free 60-Point Surface Scan
-                </Button>
+              <Link
+                href="/scan"
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "w-full sm:w-auto text-sm font-semibold py-4 px-7 border-white/15 text-slate-300 hover:bg-white/5 cursor-pointer flex items-center justify-center gap-2",
+                })}
+              >
+                <FileText className="w-4 h-4 text-cyan-400" aria-hidden />
+                <span>Run Free {SCAN_CHECK_COUNT}-Point Surface Scan</span>
               </Link>
             </div>
           </div>
@@ -169,7 +170,7 @@ export default function EnterprisePage() {
         <section className="pb-24 max-w-6xl mx-auto px-4 sm:px-6 space-y-6">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Security Tiers at a Glance</h2>
           <div className="border border-white/10 rounded-2xl overflow-x-auto bg-[#0b0d13]/80">
-            <table className="w-full text-left text-xs sm:text-sm">
+            <table className="w-full min-w-[540px] text-left text-xs sm:text-sm">
               <thead className="bg-[#10141f] text-slate-400 font-mono border-b border-white/10">
                 <tr>
                   <th className="p-4">Tier</th>

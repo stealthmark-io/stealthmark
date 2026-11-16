@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowLeft, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { CopyEmail } from '@/components/ui/copy-email';
 import { DONATION_OPTIONS, FIX_PACK, FREE_SCANS_PER_DOMAIN } from '@/lib/offer';
+import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
 
 export const metadata: Metadata = {
   title: 'Refund & Cancellation Policy — StealthMark',
@@ -48,7 +49,7 @@ export default function RefundPage() {
             <h2 className="text-lg font-bold text-white">1. No Subscriptions or Automatic Renewals</h2>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-300">
               <li><strong>One-Time Checkout Only:</strong> Every {FIX_PACK.label} is paid once per domain, by card through our Merchant of Record, <strong>Polar (polar.sh)</strong>, or with {DONATION_OPTIONS.stablecoinAmount} on-chain. You will never be charged a monthly or annual renewal fee.</li>
-              <li><strong>Free 60-Point Scanner:</strong> Running passive scans on <code className="font-mono text-cyan-300">/scan</code> is free and requires no credit card; the full report is free for the first {FREE_SCANS_PER_DOMAIN} scans of each domain.</li>
+              <li><strong>Free {SCAN_CHECK_COUNT}-Point Scanner:</strong> Running passive scans on <code className="font-mono text-cyan-300">/scan</code> is free and requires no credit card; the full report is free for the first {FREE_SCANS_PER_DOMAIN} scans of each domain.</li>
             </ul>
           </section>
 

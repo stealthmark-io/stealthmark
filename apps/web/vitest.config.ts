@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    setupFiles: ['./src/__tests__/setup/isolate-audit-cache.ts'],
+    setupFiles: ['./src/__tests__/setup/isolate-audit-cache.ts', './src/__tests__/setup/isolate-dns.ts'],
   },
   resolve: {
     alias: {

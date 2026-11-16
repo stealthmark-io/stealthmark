@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import {
+  BROTLI_BLOCK_BODY,
+  BROTLI_BLOCK_STATUS,
+  SAFE_OUTBOUND_ACCEPT_ENCODING,
+} from '@stealthmark/core';
 import { stealthmarkExpress, type ExpressResponseLike } from '../express.js';
 import { stealthmarkFastify, type FastifyReplyLike } from '../fastify.js';
 import { negotiatedVary } from '../meter.js';
@@ -613,6 +618,157 @@ describe('@stealthmark/express — caching of negotiated responses', () => {
 
     it('leaves Vary: * as it is', () => {
       expect(negotiatedVary('*')).toBe('*');
+    });
+  });
+
+  describe('CVE-2026-111497 inbound brotli payload guard', () => {
+    const baseConfig = { siteName: 'BrotliGuardTest' };
+
+    describe('Express', () => {
+      it.each(['br', 'gzip, br', 'x-brotli'])(
+        'blocks inbound brotli payload (%s) with 415 and does not invoke next()',
+        (encoding) => {
+          const sent: Record<string, string> = {};
+          let statusCode = 0;
+          let body = '';
+          const res = {
+            setHeader: vi.fn((k: string, v: string) => {
+              sent[k.toLowerCase()] = v;
+            }),
+            status: vi.fn((code: number) => {
+              statusCode = code;
+              return res;
+            }),
+            send: vi.fn((b: string) => {
+              body = b;
+            }),
+          };
+          const next = vi.fn();
+          const middleware = stealthmarkExpress(baseConfig);
+
+          middleware(
+            {
+              path: '/api/upload',
+              headers: {
+                host: 'api.acme.com',
+                'content-encoding': encoding,
+              },
+            },
+            res as unknown as ExpressResponseLike,
+            next
+          );
+
+          expect(next).not.toHaveBeenCalled();
+          expect(statusCode).toBe(BROTLI_BLOCK_STATUS);
+          expect(sent['content-type']).toBe('application/json; charset=utf-8');
+          expect(sent['accept-encoding']).toBe(SAFE_OUTBOUND_ACCEPT_ENCODING);
+          expect(sent['cache-control']).toBe('no-store');
+          expect(JSON.parse(body)).toEqual(BROTLI_BLOCK_BODY);
+        }
+      );
+
+      it('allows safe gzip encoding to pass normally to next()', () => {
+        const sent: Record<string, string> = {};
+        const res = {
+          setHeader: vi.fn((k: string, v: string) => {
+            sent[k.toLowerCase()] = v;
+          }),
+          status: vi.fn(() => res),
+          send: vi.fn(),
+        };
+        const next = vi.fn();
+        const middleware = stealthmarkExpress(baseConfig);
+
+        middleware(
+          {
+            path: '/api/upload',
+            headers: {
+              host: 'api.acme.com',
+              'content-encoding': 'gzip',
+            },
+          },
+          res as unknown as ExpressResponseLike,
+          next
+        );
+
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(res.status).not.toHaveBeenCalledWith(415);
+      });
+    });
+
+    describe('Fastify', () => {
+      it.each(['br', 'gzip, br', 'x-brotli'])(
+        'blocks inbound brotli payload (%s) with 415 and does not invoke done()',
+        (encoding) => {
+          const sent: Record<string, string> = {};
+          let statusCode = 0;
+          let payloadSent: unknown = null;
+          const reply = {
+            header: vi.fn((k: string, v: string) => {
+              sent[k.toLowerCase()] = v;
+              return reply;
+            }),
+            code: vi.fn((code: number) => {
+              statusCode = code;
+              return reply;
+            }),
+            send: vi.fn((payload: unknown) => {
+              payloadSent = payload;
+              return reply;
+            }),
+          };
+          const done = vi.fn();
+          const hook = stealthmarkFastify(baseConfig);
+
+          hook(
+            {
+              url: '/api/upload',
+              headers: {
+                host: 'api.acme.com',
+                'content-encoding': encoding,
+              },
+            },
+            reply as unknown as FastifyReplyLike,
+            done
+          );
+
+          expect(done).not.toHaveBeenCalled();
+          expect(statusCode).toBe(BROTLI_BLOCK_STATUS);
+          expect(sent['content-type']).toBe('application/json; charset=utf-8');
+          expect(sent['accept-encoding']).toBe(SAFE_OUTBOUND_ACCEPT_ENCODING);
+          expect(sent['cache-control']).toBe('no-store');
+          expect(payloadSent).toEqual(BROTLI_BLOCK_BODY);
+        }
+      );
+
+      it('allows safe gzip encoding to pass normally to done()', () => {
+        const sent: Record<string, string> = {};
+        const reply = {
+          header: vi.fn((k: string, v: string) => {
+            sent[k.toLowerCase()] = v;
+            return reply;
+          }),
+          code: vi.fn(() => reply),
+          send: vi.fn(() => reply),
+        };
+        const done = vi.fn();
+        const hook = stealthmarkFastify(baseConfig);
+
+        hook(
+          {
+            url: '/api/upload',
+            headers: {
+              host: 'api.acme.com',
+              'content-encoding': 'gzip',
+            },
+          },
+          reply as unknown as FastifyReplyLike,
+          done
+        );
+
+        expect(done).toHaveBeenCalledTimes(1);
+        expect(reply.code).not.toHaveBeenCalledWith(415);
+      });
     });
   });
 });

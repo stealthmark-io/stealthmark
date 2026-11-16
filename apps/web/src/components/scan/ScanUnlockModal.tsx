@@ -131,7 +131,7 @@ export function ScanUnlockModal({
             Unlock {FIX_PACK.label} for {targetDomain}
           </h3>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            The {SCAN_CHECK_COUNT}-check audit and its full report are{' '}
+            The {SCAN_CHECK_COUNT}-point audit and its full report are{' '}
             <strong className="text-emerald-300">free</strong> for the first {FREE_SCANS_PER_DOMAIN} scans of each
             domain. The {FIX_PACK.label} is a one-time{' '}
             <strong className="text-white">{FIX_PACK.starterPriceLabel}</strong> unlock for{' '}
@@ -267,7 +267,7 @@ export function ScanUnlockModal({
             rel="noopener noreferrer"
             className="text-cyan-300 hover:underline"
           >
-            Explore 16 x402 Verification APIs &rarr;
+            Explore 20 x402 Verification APIs &rarr;
           </a>
         </div>
       </div>

@@ -17,6 +17,18 @@
       "name": "StealthMark API",
       "url": "https://api.stealthmark.io/v1/openapi.json",
       "description": "REST API for observing and governing AI agent traffic on registered sites."
+    },
+    {
+      "type": "api",
+      "name": "StealthMark agent catalog",
+      "url": "https://stealthmark.io/agents.json",
+      "description": "MCP server, REST endpoints, access and pricing for AI agents."
+    },
+    {
+      "type": "mcp",
+      "name": "StealthMark MCP server",
+      "url": "https://stealthmark.io/.well-known/mcp.json",
+      "description": "Streamable HTTP MCP server at https://stealthmark.io/api/mcp."
     }
   ]
 }

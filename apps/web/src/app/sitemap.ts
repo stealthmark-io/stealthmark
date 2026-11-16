@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { SITE_ORIGIN } from '@/lib/site';
 
-const PUBLIC_PATHS = ['/', '/scan', '/pricing', '/docs', '/trust', '/leaderboard', '/enterprise', '/enterprise/contact', '/privacy', '/terms', '/refund'] as const;
+const PUBLIC_PATHS = ['/', '/scan', '/pricing', '/docs', '/agents', '/trust', '/leaderboard', '/enterprise', '/enterprise/contact', '/privacy', '/terms', '/refund', '/advisories'] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return PUBLIC_PATHS.map((path) => ({

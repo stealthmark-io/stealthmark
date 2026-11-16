@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   ShieldCheck,
   Lock,
-  Database,
   Eye,
   EyeOff,
   CheckCircle2,
@@ -14,21 +13,20 @@ import {
   Check,
   ArrowRight,
   Code2,
-  Fingerprint,
-  Clock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from '@/components/landing/Footer';
-import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
+import { SCAN_CHECK_COUNT, SCAN_COVERAGE, SCAN_MEASURED_COUNT } from '@/lib/readiness-report';
 import { FIX_PACK } from '@/lib/offer';
+import { LINKEDIN_COMPANY_URL } from '@/lib/site';
 
 const SECURITY_EMAIL = 'security@stealthmark.io';
 
 const ENGINE_DOES: readonly string[] = [
-  `Executes ${SCAN_CHECK_COUNT} non-intrusive external checks across TLS 1.2/1.3, DNS/SPF/DMARC/CAA, Shodan InternetDB open ports & CVEs, HTTP response headers, exposed dotfiles (/.env, /.git/HEAD), client JS bundles, and 2026 CVE signatures (including Node2Shell CVE-2026-111497, SonicWall SMA 1000, Cisco ASA CVE-2026-76418 & Ivanti CVE-2026-104935).`,
+  `Executes ${SCAN_MEASURED_COUNT} non-intrusive external checks across TLS 1.2/1.3, DNS/SPF/DMARC/CAA, Shodan InternetDB open ports & CVEs, HTTP response headers, exposed dotfiles (/.env, /.git/HEAD), client JS bundles, and 2026 CVE signatures (including Node2Shell CVE-2026-111497, SonicWall SMA 1000, Cisco ASA CVE-2026-76418 & Ivanti CVE-2026-104935). ${SCAN_COVERAGE}.`,
   'Maps every finding to the 10 passive gates of OWASP Top 10:2025 with verifiable HTTP/DNS evidence and issues HMAC-SHA256 x402 Counterparty Trust Receipts (/api/v2/trust-receipt).',
   'Generates stack-specific edge remediation code (Cloudflare Worker v5.1 with JA4 Session Binding, Anti-Node2Shell Brotli Guard, Static Binary PDF CDR Inspector, Anti-SSRF IPv4/IPv6 & 48h VPN Gate, plus <3KB Client RASP, Google Cloud Armor CEL/Terraform, Next.js CSP nonces, and Nginx configs) and board-ready PDF reports.',
   `Unlocks the ${FIX_PACK.label} for a domain (Cloudflare WAF rule, Cloudflare Worker, client-side RASP shield script, live badge snippet and white-label PDF report) for ${FIX_PACK.starterPriceLabel} one-time, and offers free CLI tooling (\`npx @stealthmark/cli doctor\` & \`pdf-check\`).`,
@@ -38,7 +36,7 @@ const ENGINE_DOES_NOT: readonly string[] = [
   'Never sends destructive, state-mutating, brute-force, or exploitation payloads against audited targets.',
   'Never accesses private internal networks: all scanner requests enforce strict DNS-resolution IP pinning and block RFC 1918, loopback, link-local, and cloud metadata ranges.',
   'Never stores or exfiltrates sensitive secret values found in public bundles—findings report the vector and masked pattern so you can rotate keys safely.',
-  'Never requires installing agents, root certificates, or database credentials to run the public 60-point perimeter audit.',
+  `Never requires installing agents, root certificates, or database credentials to run the public ${SCAN_CHECK_COUNT}-point perimeter audit.`,
 ];
 
 const DATA_PROCESSED: readonly string[] = [
@@ -55,7 +53,7 @@ const DATA_NEVER: readonly string[] = [
 ];
 
 const PRACTICES: readonly string[] = [
-  'Our own domain (stealthmark.io) is continuously audited by our 60-point engine and maintains a verified Grade A+ (100/100 · 0 warnings · 0 failures).',
+  `Our own domain (stealthmark.io) is continuously audited by our ${SCAN_CHECK_COUNT}-point engine and maintains a verified Grade A+ (100/100 · 0 warnings · 0 failures).`,
   'Per-request cryptographic CSP nonces with strict-dynamic, HSTS preload (max-age=63072000), X-Frame-Options DENY, and COOP/CORP isolation enforced on every response.',
   'Outbound auditor requests resolve DNS once, pin the validated public IP (blocking RFC 4291 IPv4-compatible IPv6, Teredo and FQDN trailing-dot targets) and reject XML ENTITY declarations.',
   'Semantic inspection normalizes text with Unicode NFKC, strips hidden zero-width and tag codepoints, and evaluates linear-time O(N) non-backtracking expressions.',
@@ -122,13 +120,11 @@ export default function TrustPage() {
             Grade A+ (100/100), and how we handle sensitive forensic disclosures.
           </p>
           <div className="flex flex-wrap gap-3 pt-1">
-            <Link href="/scan">
-              <Button variant="primary" size="md">
-                Run Free {SCAN_CHECK_COUNT}-Point Scan <ArrowRight className="w-4 h-4" aria-hidden />
-              </Button>
+            <Link href="/scan" className={buttonVariants({ variant: 'primary', size: 'md' })}>
+              Run Free {SCAN_CHECK_COUNT}-Point Scan <ArrowRight className="w-4 h-4" aria-hidden />
             </Link>
-            <Link href="/docs">
-              <Button variant="outline" size="md">Read Security Docs</Button>
+            <Link href="/docs" className={buttonVariants({ variant: 'outline', size: 'md' })}>
+              Read Security Docs
             </Link>
           </div>
         </section>
@@ -198,6 +194,25 @@ export default function TrustPage() {
               {copied ? <Check className="w-4 h-4 text-emerald-400" aria-hidden /> : <Copy className="w-4 h-4" aria-hidden />}
               {copied ? 'Copied' : 'Copy'}
             </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 pt-2 text-xs font-mono text-slate-400">
+            <Link
+              href="/advisories"
+              className="inline-flex items-center gap-1.5 text-cyan-300 hover:text-cyan-200 transition"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" aria-hidden />
+              <span>Coordinated Disclosure Ledger (/advisories)</span>
+            </Link>
+            <span className="text-white/20">|</span>
+            <a
+              href={LINKEDIN_COMPANY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sky-300 hover:text-sky-200 transition"
+            >
+              <span>LinkedIn · @stealthmark-scan</span>
+              <ArrowRight className="w-3.5 h-3.5" aria-hidden />
+            </a>
           </div>
         </section>
       </main>

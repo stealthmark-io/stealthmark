@@ -127,7 +127,7 @@ export function useDashboardState(user: AuthUser | null, isAuthenticated: boolea
         });
     } else if (!isAuthenticated) {
       // Guest Mode: load demo sandbox data
-      setOnboardedDomain(readStoredValue("stealthmark_domain_guest") || "democv.example.com");
+      setOnboardedDomain(readStoredValue("stealthmark_domain_guest") || "atsify-ai.com");
       setOnboardedCapabilities(readStoredJson("stealthmark_capabilities_guest", isCapabilityList) ?? DEFAULT_CAPABILITIES);
       setApiKeys(readStoredJson("stealthmark_api_keys_guest", isApiKeyList) ?? DEFAULT_API_KEYS);
     }

@@ -39,19 +39,19 @@ interface OnboardingWizardProps {
    ═══════════════════════════════════════════════════════════════════ */
 
 const DOMAIN_PRESETS: Record<string, DetectedCapability[]> = {
-  demodental: [
+  atlantikai: [
     { id: 'plans', label: 'Browse Treatment Plans', action: 'GET_PLANS', method: 'GET', path: '/agent/v1/plans', icon: <LayoutList className="w-4 h-4" />, enabled: true, rateLimit: 60 },
     { id: 'simulate', label: 'Generate Smile Simulation', action: 'SIMULATE_SMILE', method: 'POST', path: '/agent/v1/simulate', icon: <Sparkles className="w-4 h-4" />, enabled: true, rateLimit: 20 },
     { id: 'checkout', label: 'Subscribe to Plan', action: 'CHECKOUT', method: 'POST', path: '/agent/v1/checkout', icon: <ShoppingCart className="w-4 h-4" />, enabled: true, rateLimit: 10 },
     { id: 'admin', label: 'Access Admin Panel', action: 'ADMIN_ACCESS', method: 'GET', path: '/admin/*', icon: <Lock className="w-4 h-4" />, enabled: false, rateLimit: 0, isBlocked: true },
   ],
-  demotickets: [
+  deportick: [
     { id: 'events', label: 'Browse Event Catalog', action: 'LIST_EVENTS', method: 'GET', path: '/agent/v1/events', icon: <Calendar className="w-4 h-4" />, enabled: true, rateLimit: 120 },
     { id: 'seats', label: 'Check Seat Availability', action: 'CHECK_SEATS', method: 'GET', path: '/agent/v1/seats', icon: <SearchIcon className="w-4 h-4" />, enabled: true, rateLimit: 60 },
     { id: 'purchase', label: 'Purchase Tickets', action: 'PURCHASE', method: 'POST', path: '/agent/v1/purchase', icon: <ShoppingCart className="w-4 h-4" />, enabled: true, rateLimit: 10 },
     { id: 'abandoned', label: 'View Abandoned Carts', action: 'VIEW_CARTS', method: 'GET', path: '/cart/abandoned', icon: <Lock className="w-4 h-4" />, enabled: false, rateLimit: 0, isBlocked: true },
   ],
-  democv: [
+  atsify: [
     { id: 'upload', label: 'Upload CV for Audit', action: 'UPLOAD_CV', method: 'POST', path: '/agent/v1/upload', icon: <FileText className="w-4 h-4" />, enabled: true, rateLimit: 30 },
     { id: 'audit', label: 'Run ATS Optimization', action: 'AUDIT_CV', method: 'POST', path: '/agent/v1/audit', icon: <Sparkles className="w-4 h-4" />, enabled: true, rateLimit: 20 },
     { id: 'report', label: 'Download Report', action: 'GET_REPORT', method: 'GET', path: '/agent/v1/report', icon: <FileText className="w-4 h-4" />, enabled: true, rateLimit: 60 },
@@ -279,7 +279,7 @@ export const config = {
           {/* Presets */}
           <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500 font-mono">
             <span>Demo templates:</span>
-            {['demodental.example.com', 'demotickets.example.com', 'democv.example.com'].map((d) => (
+            {['atlantikai.com', 'deportick.com', 'atsify-ai.com'].map((d) => (
               <button
                 key={d}
                 onClick={() => { setState(prev => ({ ...prev, domain: d })); }}

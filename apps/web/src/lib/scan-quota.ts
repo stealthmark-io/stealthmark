@@ -19,6 +19,10 @@ const QUOTA_PRICES = {
 
 const EXEMPT_APEX_DOMAINS = new Set<string>([
   'stealthmark.io',
+  'somos-kora.com',
+  'oceaneye-ai.com',
+  'sentinel.oceaneye-ai.com',
+  'elite-web-solutions.com',
   'openai.com',
   'anthropic.com',
   'google.com',
@@ -156,6 +160,28 @@ export function resetQuotaStoreForTests(): void {
   memoryQuotaStore = {};
 }
 
+export interface QuotaStoreStats {
+  domainsScannedTotal: number;
+  domainsScanned24h: number;
+  issuesFound24h: number;
+}
+
+/** Aggregate counts only: domain keys never leave this module. */
+export function getQuotaStoreStats(nowMs: number = Date.now()): QuotaStoreStats {
+  const records = Object.values(loadStore());
+  const since24h = nowMs - 24 * 60 * 60 * 1000;
+  let domainsScanned24h = 0;
+  let issuesFound24h = 0;
+  for (const record of records) {
+    const lastScanAtMs = Number(record.lastScanAtMs);
+    if (!Number.isFinite(lastScanAtMs) || lastScanAtMs < since24h) continue;
+    domainsScanned24h += 1;
+    const issues = Number(record.lastIssues);
+    if (Number.isFinite(issues) && issues > 0) issuesFound24h += issues;
+  }
+  return { domainsScannedTotal: records.length, domainsScanned24h, issuesFound24h };
+}
+
 export function evaluateAndRecordDomainScanQuota(params: {
   cleanDomain: string;
   unlocked: boolean;
@@ -284,7 +310,7 @@ export function redactReportForFourthScanPaywall(
     quota_locked: true,
     scan_quota: quota,
     summary: {
-      counts: { pass: 0, warn: 0, fail: 0, info: 0, error: 0 },
+      counts: { pass: 0, warn: 0, fail: 0, info: 0, error: 0, not_assessed: 0 },
       by_section: {},
       total_checks: quota.checks_evaluated,
     },

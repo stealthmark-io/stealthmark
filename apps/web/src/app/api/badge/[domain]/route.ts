@@ -40,7 +40,7 @@ export async function GET(
   if (!checkBadgeRateLimit(ip)) {
     return new NextResponse('Rate limit exceeded', {
       status: 429,
-      headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' },
+      headers: { 'Cache-Control': 'no-store', 'Retry-After': '60', 'Cross-Origin-Resource-Policy': 'cross-origin' },
     });
   }
 
@@ -94,6 +94,7 @@ export async function GET(
       'Content-Type': 'image/svg+xml; charset=utf-8',
       'Cache-Control': cacheHeader,
       'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      'Cross-Origin-Resource-Policy': 'cross-origin',
       'X-Content-Type-Options': 'nosniff',
       'X-StealthMark-Domain': safeDomain,
       'X-StealthMark-Grade': state.valid ? state.grade : 'UNVERIFIED',

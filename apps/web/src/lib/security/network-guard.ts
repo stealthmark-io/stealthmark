@@ -37,12 +37,16 @@ export function isCloudflareIpv4(ip: string): boolean {
 export function isPrivateOrReservedIpv4(ip: string): boolean {
   if (!net.isIPv4(ip)) return true;
   const parts = ip.split('.').map(Number);
-  const [a, b] = parts;
+  const [a, b, c] = parts;
   if (a === 0 || a === 10 || a === 127) return true;
   if (a === 169 && b === 254) return true; // Cloud Metadata SSRF protection
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
   if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true; // IETF protocol assignments, TEST-NET-1
+  if (a === 198 && (b === 18 || b === 19)) return true; // Benchmarking
+  if (a === 198 && b === 51 && c === 100) return true; // TEST-NET-2
+  if (a === 203 && b === 0 && c === 113) return true; // TEST-NET-3
   if (a >= 224) return true; // Multicast & Reserved
   return false;
 }
@@ -72,8 +76,8 @@ export async function resolveDomainIp(domain: string): Promise<string | null> {
       }
       return records[0];
     }
-  } catch (err: any) {
-    if (err?.message === 'SSRF_BLOCKED_PRIVATE_IP') throw err;
+  } catch (err) {
+    if (err instanceof Error && err.message === 'SSRF_BLOCKED_PRIVATE_IP') throw err;
   }
 
   // Fallback to dns.lookup for CNAMEs (e.g. Shopify, Webflow)
@@ -85,8 +89,8 @@ export async function resolveDomainIp(domain: string): Promise<string | null> {
       }
       return lookup.address;
     }
-  } catch (err: any) {
-    if (err?.message === 'SSRF_BLOCKED_PRIVATE_IP') throw err;
+  } catch (err) {
+    if (err instanceof Error && err.message === 'SSRF_BLOCKED_PRIVATE_IP') throw err;
   }
 
   return null;
@@ -130,6 +134,47 @@ export async function readSafeTextSnippet(res: Response, maxBytes = 16384): Prom
   return new TextDecoder('utf-8', { fatal: false }).decode(combined);
 }
 
+/**
+ * Reads up to maxBytes of a body and says whether that was all of it. A verdict of absence must not rest on
+ * a body that was cut at the cap or broke off mid-read, so callers check `complete` before passing anything.
+ */
+export async function readBoundedText(res: Response, maxBytes: number): Promise<{ text: string; complete: boolean }> {
+  if (!res.body) return { text: '', complete: true };
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  let complete = false;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        complete = true;
+        break;
+      }
+      const remaining = maxBytes - received;
+      if (value.byteLength > remaining) {
+        chunks.push(value.subarray(0, remaining));
+        received += remaining;
+        await reader.cancel().catch(() => undefined);
+        break;
+      }
+      chunks.push(value);
+      received += value.byteLength;
+    }
+  } catch {
+    complete = false;
+  } finally {
+    reader.releaseLock();
+  }
+  const combined = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { text: new TextDecoder('utf-8', { fatal: false }).decode(combined), complete };
+}
+
 // If domain is behind Cloudflare, extract candidate origin server IP from SPF ip4: directives
 export function extractOriginIpFromSpf(spfRecord: string): string | null {
   const matches = spfRecord.match(/\bip4:(\d{1,3}(?:\.\d{1,3}){3})\b/gi) || [];
@@ -144,4 +189,29 @@ export function extractOriginIpFromSpf(spfRecord: string): string | null {
     }
   }
   return null;
+}
+
+const GLOBAL_UNICAST_IPV6 = new net.BlockList();
+GLOBAL_UNICAST_IPV6.addSubnet('2000::', 3, 'ipv6');
+const RESERVED_IPV6 = new net.BlockList();
+RESERVED_IPV6.addSubnet('2001::', 23, 'ipv6');
+RESERVED_IPV6.addSubnet('2001:db8::', 32, 'ipv6');
+RESERVED_IPV6.addSubnet('2002::', 16, 'ipv6');
+
+function isPublicAddress(address: string, family: number): boolean {
+  if (family === 4) return !isPrivateOrReservedIpv4(address);
+  return GLOBAL_UNICAST_IPV6.check(address, 'ipv6') && !RESERVED_IPV6.check(address, 'ipv6');
+}
+
+/**
+ * True only when the host resolves and every address it resolves to is public.
+ * The caller's fetch resolves the name again, so this does not pin the connection to the addresses checked here.
+ */
+export async function resolvesToPublicAddressesOnly(host: string): Promise<boolean> {
+  try {
+    const addresses = await dns.lookup(host, { all: true, verbatim: true });
+    return addresses.length > 0 && addresses.every(({ address, family }) => isPublicAddress(address, family));
+  } catch {
+    return false;
+  }
 }

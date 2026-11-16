@@ -7,7 +7,7 @@ import { SCAN_CHECK_COUNT } from '@/lib/readiness-report';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy — StealthMark',
-  description: 'StealthMark Privacy Policy: how our 60-point passive perimeter scanner processes publicly observable network signals and protects customer data.',
+  description: `StealthMark Privacy Policy: how our ${SCAN_CHECK_COUNT}-point passive perimeter scanner processes publicly observable network signals and protects customer data.`,
   alternates: { canonical: '/privacy' },
 };
 
@@ -37,7 +37,7 @@ export default function PrivacyPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-white">1. Overview &amp; Privacy Commitment</h2>
             <p>
-              At StealthMark, we engineer security infrastructure with privacy-by-design. This Privacy Policy details what information our v5.1 {SCAN_CHECK_COUNT}-point passive perimeter scanner, Static PDF CDR Inspector, and Fix Pack service collect, how it is processed, and what we never collect.
+              At StealthMark, we engineer security infrastructure with privacy-by-design. This Privacy Policy details what information our v6 {SCAN_CHECK_COUNT}-point passive perimeter scanner, Static PDF CDR Inspector, and Fix Pack service collect, how it is processed, and what we never collect.
             </p>
           </section>
 
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-white">5. Infrastructure &amp; Sub-Processors</h2>
             <ul className="list-disc pl-5 space-y-1 text-slate-300">
-              <li><strong>Google Cloud Platform (us-central1) &amp; Cloudflare:</strong> Host the StealthMark web application, edge WAF, and 60-point scanner gateway.</li>
+              <li><strong>Google Cloud Platform (us-central1) &amp; Cloudflare:</strong> Host the StealthMark web application, edge WAF, and {SCAN_CHECK_COUNT}-point scanner gateway.</li>
               <li><strong>Supabase:</strong> Stores scan telemetry and alert subscriptions (US region, TLS encrypted).</li>
               <li><strong>Polar (polar.sh):</strong> Processes one-time Fix Pack card payments as Merchant of Record.</li>
             </ul>

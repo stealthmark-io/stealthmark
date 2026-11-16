@@ -10,9 +10,7 @@ const CONSOLE_ORG_ID =
   process.env.STEALTHMARK_CONSOLE_ORG_ID ||
   'ecf26102-eff1-4a45-8bb4-630cba346b4a';
 
-const OPENS_LOG_FILE =
-  process.env.STEALTHMARK_EMAIL_OPENS_FILE ||
-  '/var/cache/stealthmark-web/email_opens.json';
+const OPENS_LOG_FILE = '/home/hermes001/.hermes/stealthmark_email_opens.json';
 
 // 1x1 transparent GIF
 const TRANSPARENT_GIF = Buffer.from(

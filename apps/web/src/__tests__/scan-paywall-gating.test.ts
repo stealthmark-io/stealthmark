@@ -7,6 +7,7 @@ vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: () => null 
 
 import { GET as auditGet } from '../app/api/scan/audit/route';
 import { normalizeApexDomain, resetQuotaStoreForTests } from '../lib/scan-quota';
+import { V6_CONTROLS } from '../lib/scan-v6';
 
 type Item = Record<string, unknown>;
 
@@ -122,15 +123,15 @@ describe('scan paywall gating (full report free for the first 20 scans of a doma
     expect(items.find((item) => item.id === 'dmarc_record')?.recommendation).toBe('Publish DMARC.');
   });
 
-  it('keeps pass and info checks open, the 15 web shield checks included', async () => {
-    // Under Vitest the route adds the web shield checks only to reports of 20 rows or more, as the gateway's 45-row reports are.
+  it('keeps pass, info and not-assessed checks open, the 15 web shield and 56 v6 checks included', async () => {
+    // Under Vitest the route adds the web shield and v6 checks only to reports of 20 rows or more, as the gateway's 45-row reports are.
     const report = structuredClone(GATEWAY_REPORT);
     const passing = Array.from({ length: 13 }, (_, i) => ({ id: `passing_check_${i}`, title: `Passing check ${i}`, status: 'pass', detail: 'Configured.' }));
     report.sections.dns.push(...passing);
     const { items } = await audit({}, report);
     const open = items.filter((item) => !isIssue(item));
     const shieldIds = ['clipboard_read_lock', 'hardware_sensor_isolation', 'csp_connect_src_exfil', 'csp_form_action_lock', 'session_cookie_aitm_resistance', 'aitm_reverse_proxy_telemetry', 'autofill_trap_rasp_posture', 'defcon_autonomous_response', 'tls_ja4_session_binding', 'webauthn_passkey_ror', 'indirect_prompt_injection_dom', 'pqc_hybrid_key_exchange', 'subdomain_takeover_cname', 'cross_origin_isolation_posture', 'nextjs_mcp_exposure'];
-    expect(open.map((item) => item.id).sort()).toEqual([...shieldIds, 'exposed_ports_and_cves', 'llms_txt', ...passing.map((row) => row.id)].sort());
+    expect(open.map((item) => item.id).sort()).toEqual([...shieldIds, ...V6_CONTROLS.map(({ id }) => id), 'exposed_ports_and_cves', 'llms_txt', ...passing.map((row) => row.id)].sort());
     expect(open.find((item) => item.id === 'llms_txt')).toMatchObject({ title: '/llms.txt', status: 'info' });
     for (const item of open) expect(item.locked).not.toBe(true);
   });

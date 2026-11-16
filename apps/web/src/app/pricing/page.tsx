@@ -12,8 +12,10 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-[#060709] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-white relative bg-grid-pattern overflow-x-hidden">
       {/* Ambient Radial Glows */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] ambient-glow-purple pointer-events-none" />
-      <div className="absolute top-24 left-1/2 -translate-x-1/2 w-[600px] h-[300px] ambient-glow-cyan pointer-events-none" />
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] ambient-glow-purple" />
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-[600px] h-[300px] ambient-glow-cyan" />
+      </div>
 
       {/* Navbar */}
       <Navbar />

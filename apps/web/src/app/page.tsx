@@ -12,9 +12,10 @@ import {
   CybersecurityAuditTiers,
 } from "@/components/landing";
 import { VesperStage } from "@/components/canvas/VesperStage";
-import { StealthMascot } from "@/components/StealthMascot";
 import { StealthMarkV5FeatureGrid } from "@/components/landing/StealthMarkV5FeatureGrid";
 import { SecurityResearchAdvisories } from "@/components/landing/SecurityResearchAdvisories";
+import { AgentHubStrip } from "@/components/landing/AgentHubStrip";
+import { LiveTelemetryBar } from "@/components/landing/LiveTelemetryBar";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -31,7 +32,9 @@ export default function StealthMarkLanding() {
 
         <main className="flex-1 space-y-20 sm:space-y-28 pb-24 relative z-10">
           <CybersecurityHero />
+          <LiveTelemetryBar />
           <SecurityResearchAdvisories />
+          <AgentHubStrip />
           <StealthMarkV5FeatureGrid />
           <ActiveShieldPainCards />
           <AuditorShowcase />
@@ -43,8 +46,6 @@ export default function StealthMarkLanding() {
 
         <Footer />
       </div>
-
-      <StealthMascot variant="floating" />
     </div>
   );
 }

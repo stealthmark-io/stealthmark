@@ -25,7 +25,9 @@ const GATEWAY_REPORT = {
 let ipCounter = 0;
 function nextIp() {
   ipCounter += 1;
-  return `198.51.100.${ipCounter}`;
+  const thirdOctet = 100 + Math.floor((ipCounter - 1) / 250);
+  const fourthOctet = ((ipCounter - 1) % 250) + 1;
+  return `198.51.${thirdOctet}.${fourthOctet}`;
 }
 
 async function audit(query: string, userAgent: string) {
