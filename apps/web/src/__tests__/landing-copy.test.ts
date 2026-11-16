@@ -172,11 +172,14 @@ describe('landing copy tells the single-player story', () => {
 
   it('the integrations grid lists only real integrations', () => {
     const text = visibleText(surfaces.EcosystemGrid);
-    for (const real of ['Next.js', 'Express', 'Fastify', 'Vercel', 'Supabase', 'Polar']) {
+    for (const real of ['Next.js', 'Express', 'Fastify', 'Vercel']) {
       expect(text).toContain(real);
     }
     for (const fabricated of ['Cursor', 'Windsurf', 'Hermes', 'CrewAI', 'LangGraph', 'stealthmark connect']) {
       expect(text).not.toContain(fabricated);
+    }
+    for (const internalVendor of ['Supabase', 'Polar']) {
+      expect(text).not.toContain(internalVendor);
     }
   });
 

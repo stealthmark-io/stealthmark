@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Database, Receipt, Server } from "lucide-react";
+import { Server } from "lucide-react";
 import { IntegrationIcon } from "@/components/IntegrationIcon";
 
 interface Integration {
@@ -23,24 +23,6 @@ const INTEGRATIONS: Integration[] = [
   },
   { name: "Fastify", role: "Served by the Express adapter", icon: <IntegrationIcon id="fastify" /> },
   { name: "Vercel", role: "Hosts the Next.js app where the middleware runs", icon: <IntegrationIcon id="vercel" /> },
-  {
-    name: "Supabase",
-    role: "Authentication and data behind the console",
-    icon: (
-      <IntegrationIcon>
-        <Database className="w-5 h-5 text-emerald-400" />
-      </IntegrationIcon>
-    ),
-  },
-  {
-    name: "Polar",
-    role: "Checkout and receipts for prepaid credits",
-    icon: (
-      <IntegrationIcon>
-        <Receipt className="w-5 h-5 text-cyan-400" />
-      </IntegrationIcon>
-    ),
-  },
 ];
 
 export function EcosystemGrid() {
@@ -50,7 +32,7 @@ export function EcosystemGrid() {
         <div className="text-center space-y-2 max-w-xl mx-auto">
           <div className="text-xs font-mono font-semibold tracking-widest text-cyan-400 uppercase">Works with</div>
           <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Frameworks and services behind StealthMark
+            Frameworks and hosts where the middleware runs
           </h3>
         </div>
 
