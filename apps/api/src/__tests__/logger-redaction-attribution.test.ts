@@ -78,4 +78,40 @@ describe('Pino logger attribution enrichment and secret redaction', () => {
       userAgent: 'StealthMark-Probe/1.0',
     })
   })
+
+  it('reads TRUST_CLOUDFLARE_EDGE once, when the app is built, for the request line and the request logger', async () => {
+    const lines: string[] = []
+    const stream = new Writable({
+      write(chunk, _encoding, callback) {
+        lines.push(String(chunk))
+        callback()
+      },
+    })
+
+    vi.stubEnv('TRUST_CLOUDFLARE_EDGE', 'false')
+    const app = await buildApp({
+      db: emptyResultDb(),
+      apiKeyResolver: testApiKeyResolver(),
+      loggerStream: stream,
+      logLevel: 'info',
+    })
+    vi.unstubAllEnvs()
+
+    await app.inject({
+      method: 'GET',
+      url: '/health',
+      remoteAddress: '35.191.0.1',
+      headers: { 'cf-connecting-ip': '203.0.113.50', 'cf-ray': '8e11223344556677-EZE' },
+    })
+    await app.close()
+
+    const parsed = lines
+      .flatMap((chunk) => chunk.trim().split('\n'))
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+    const requestLog = parsed.find((entry) => entry.req !== undefined)
+    const responseLog = parsed.find((entry) => entry.msg === 'request completed')
+    expect((requestLog?.req as Record<string, unknown>).clientIp).toBe('35.191.0.1')
+    expect(responseLog?.clientIp).toBe('35.191.0.1')
+  })
 })
