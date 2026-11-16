@@ -5,6 +5,7 @@ import {
   logGatewayAccessEvent,
   verifyGatewayChain,
 } from '../../services/gateway-audit.js'
+import { withTransactions } from '../helpers/fake-db.js'
 import { authHeaders } from '../helpers/test-auth.js'
 import {
   asDb,
@@ -12,6 +13,7 @@ import {
   chainedEventsDb,
   GENESIS_HASH,
   resetGatewayState,
+  type Row,
   SAMPLE_AGENT_ID,
   SAMPLE_ORG_ID,
   SAMPLE_SITE_ID,
@@ -46,8 +48,9 @@ describe(SUITE_NAME, () => {
 
     it('verifies valid hash chain and detects tampered block', async () => {
       const now = new Date()
-      const hash1 = computeEventHash(GENESIS_HASH, SAMPLE_SITE_ID, SAMPLE_AGENT_ID, 'allowed', null, now)
-      const hash2 = computeEventHash(hash1, SAMPLE_SITE_ID, SAMPLE_AGENT_ID, 'allowed', null, now)
+      const noMetadata = { ipAddress: null, passportId: null }
+      const hash1 = computeEventHash(GENESIS_HASH, SAMPLE_SITE_ID, SAMPLE_AGENT_ID, 'allowed', null, now, noMetadata)
+      const hash2 = computeEventHash(hash1, SAMPLE_SITE_ID, SAMPLE_AGENT_ID, 'allowed', null, now, noMetadata)
 
       const validEvents = [
         {
@@ -151,6 +154,70 @@ describe(SUITE_NAME, () => {
       expect(verifyTamperedPassport.brokenAtId).toBe('evt-v2')
     })
 
+    it('rejects a row that only matches the legacy v1 hash once a v2 row has been seen', async () => {
+      const t1 = new Date('2026-10-01T00:00:00.000Z')
+      const t2 = new Date('2026-10-01T00:01:00.000Z')
+      const v2Hash = computeEventHash(GENESIS_HASH, SAMPLE_SITE_ID, SAMPLE_AGENT_ID, 'allowed', 'v2 event', t1, {
+        ipAddress: '203.0.113.19',
+        passportId: null,
+      })
+      const v1OnlyHash = computeLegacyEventHashV1(v2Hash, SAMPLE_SITE_ID, SAMPLE_AGENT_ID, 'blocked', 'downgraded', t2)
+
+      const chain = [
+        {
+          id: 'evt-v2',
+          siteId: SAMPLE_SITE_ID,
+          agentId: SAMPLE_AGENT_ID,
+          passportId: null,
+          ipAddress: '203.0.113.19',
+          action: 'allowed',
+          reason: 'v2 event',
+          prevHash: GENESIS_HASH,
+          eventHash: v2Hash,
+          createdAt: t1,
+        },
+        {
+          id: 'evt-v1-after-v2',
+          siteId: SAMPLE_SITE_ID,
+          agentId: SAMPLE_AGENT_ID,
+          passportId: null,
+          ipAddress: '198.51.100.10',
+          action: 'blocked',
+          reason: 'downgraded',
+          prevHash: v2Hash,
+          eventHash: v1OnlyHash,
+          createdAt: t2,
+        },
+      ]
+
+      const result = await verifyGatewayChain(storedEventsDb(chain), SAMPLE_SITE_ID)
+      expect(result.valid).toBe(false)
+      expect(result.verifiedCount).toBe(1)
+      expect(result.brokenAtId).toBe('evt-v1-after-v2')
+      expect(result.message).toContain('Corrupted hash at event index 1')
+    })
+
+    it('keeps the v2 hash of a given event unchanged, so rows already stored keep verifying', () => {
+      const createdAt = new Date('2026-10-01T00:01:00.000Z')
+
+      const withEveryField = computeEventHash(
+        GENESIS_HASH,
+        SAMPLE_SITE_ID,
+        SAMPLE_AGENT_ID,
+        'blocked',
+        'scope violation',
+        createdAt,
+        { ipAddress: '203.0.113.19', passportId: '111e4567-e89b-12d3-a456-426614174111' }
+      )
+      const withoutOptionalFields = computeEventHash(GENESIS_HASH, SAMPLE_SITE_ID, null, 'allowed', null, createdAt, {
+        ipAddress: null,
+        passportId: null,
+      })
+
+      expect(withEveryField).toBe('98a66be1316b1de6eb8e1e6aff22a4b3ddf42d57b2398d75a045efd9eac5cafd')
+      expect(withoutOptionalFields).toBe('c50c87a93bef5e366176b3d2c2dc9be90b5c2392274676462e6b82db50df9cbb')
+    })
+
     it('validates ipAddress syntax and reason length on POST /v1/gateway/sites/:id/access and falls back to request.ip when empty', async () => {
       const site = { id: SAMPLE_SITE_ID, orgId: SAMPLE_ORG_ID, domain: 'audit.example.org', status: 'active' }
       const inserted: Record<string, unknown>[] = []
@@ -214,6 +281,52 @@ describe(SUITE_NAME, () => {
 
       expect(fallbackIpRes.statusCode).toBe(201)
       expect(inserted[0]?.ipAddress).toBe('203.0.113.77')
+    })
+
+    it('stores agentId and passportId sent in uppercase so the event still verifies against the row Postgres returns', async () => {
+      const passportId = '111e4567-e89b-12d3-a456-426614174111'
+      const site = { id: SAMPLE_SITE_ID, orgId: SAMPLE_ORG_ID, domain: 'audit.example.org', status: 'active' }
+      const inserted: Row[] = []
+      const db = withTransactions({
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: async () => [site],
+              orderBy: () => ({ limit: async () => [] }),
+            }),
+          }),
+        }),
+        insert: () => ({
+          values: (val: Row) => ({
+            returning: async () => {
+              const row = { id: 'evt-uppercase-ids', ...val }
+              inserted.push(row)
+              return [row]
+            },
+          }),
+        }),
+      })
+
+      const app = await buildGatewayApp(db)
+      const res = await app.inject({
+        method: 'POST',
+        url: `/v1/gateway/sites/${SAMPLE_SITE_ID}/access`,
+        headers: authHeaders,
+        payload: { action: 'allowed', agentId: SAMPLE_AGENT_ID.toUpperCase(), passportId: passportId.toUpperCase() },
+      })
+      await app.close()
+
+      expect(res.statusCode).toBe(201)
+
+      // uuid columns come back from Postgres in lowercase, whatever case they were written in.
+      const storedRow = {
+        ...inserted[0],
+        agentId: String(inserted[0]?.agentId).toLowerCase(),
+        passportId: String(inserted[0]?.passportId).toLowerCase(),
+      }
+      const result = await verifyGatewayChain(storedEventsDb([storedRow]), SAMPLE_SITE_ID)
+      expect(result.valid).toBe(true)
+      expect(inserted[0]).toMatchObject({ agentId: SAMPLE_AGENT_ID, passportId })
     })
 
     it('answers GET /sites/:id/analytics with a 500 and a request id when the aggregate query fails', async () => {

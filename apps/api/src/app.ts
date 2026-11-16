@@ -37,8 +37,13 @@ import { a2aRoutes } from './routes/a2a.js'
 import { openApiSpec } from './openapi.js'
 import { createApiKeyAuth, type ApiKeyResolver } from './middleware/api-key-auth.js'
 import { isInternalSecretValid } from './lib/internal-secret.js'
+import {
+  buildLoggerOptions,
+  extractHeaderString,
+  readTrustEdgeMode,
+  resolveRequestClientIp,
+} from './lib/request-logging.js'
 import { STATUS_CODES } from 'node:http'
-import { isIP } from 'node:net'
 
 export interface AppOptions {
   db?: DbClient
@@ -50,72 +55,6 @@ export interface AppOptions {
   loggerStream?: NodeJS.WritableStream
   /** Optional log level override for testing. */
   logLevel?: string
-}
-
-const CF_RAY_HEADER_REGEX = /^[0-9a-f]{8,32}(?:-[a-z0-9]{2,8})?$/i
-const REDACTED_HEADER_NAMES = new Set([
-  'authorization',
-  'proxy-authorization',
-  'cookie',
-  'set-cookie',
-  'x-api-key',
-  'x-internal-secret',
-  'x-auth-token',
-  'x-access-token',
-])
-
-function extractHeaderString(value: unknown, maxLength = 256): string | null {
-  const raw = Array.isArray(value) ? value[0] : value
-  if (typeof raw !== 'string') return null
-  const cleaned = raw.replace(/[\x00-\x1f\x7f]/g, '').trim()
-  return cleaned ? cleaned.slice(0, maxLength) : null
-}
-
-function resolveRequestClientIp(req: {
-  ip?: string
-  headers?: Record<string, unknown>
-}): string | null {
-  const headers = req.headers ?? {}
-  const trustEdgeMode = process.env.TRUST_CLOUDFLARE_EDGE?.trim().toLowerCase()
-  const rawCfIp = headers['cf-connecting-ip']
-  const singleCfIp = typeof rawCfIp === 'string' && !rawCfIp.includes(',') ? rawCfIp.trim() : null
-
-  if (trustEdgeMode !== 'false' && singleCfIp && isIP(singleCfIp) !== 0) {
-    const cfRay = extractHeaderString(headers['cf-ray'], 64) ?? ''
-    const rayCoherent =
-      trustEdgeMode === 'true'
-        ? CF_RAY_HEADER_REGEX.test(cfRay)
-        : cfRay === '' || CF_RAY_HEADER_REGEX.test(cfRay)
-    if (rayCoherent) {
-      return singleCfIp
-    }
-  }
-
-  if (typeof req.ip === 'string' && !req.ip.includes(',') && isIP(req.ip.trim()) !== 0) {
-    return req.ip.trim()
-  }
-  return null
-}
-
-function redactRequestHeaders(headers: Record<string, unknown> | undefined): Record<string, unknown> {
-  if (!headers || typeof headers !== 'object') return {}
-  const sanitized: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(headers)) {
-    if (REDACTED_HEADER_NAMES.has(key.toLowerCase())) {
-      sanitized[key] = '[REDACTED]'
-    } else {
-      sanitized[key] = value
-    }
-  }
-  return sanitized
-}
-
-function sanitizeLoggedUrl(url: string | undefined): string {
-  if (!url) return '/'
-  return url.replace(
-    /([?&](?:token|secret|key|api_key|apikey|password|authorization|auth|cookie|email|code|sig)=)[^&#]*/gi,
-    '$1[REDACTED]'
-  )
 }
 
 const PUBLIC_V1_PATHS = ['/v1', '/v1/', '/v1/openapi.json']
@@ -157,71 +96,11 @@ function isRateLimitBody(value: unknown): value is RateLimitBody {
 export async function buildApp(options: AppOptions = {}) {
   const features = resolveFeatures(options.features)
   const publicV1Paths = new Set(features.passports ? [...PUBLIC_V1_PATHS, ...PUBLIC_PASSPORT_PATHS] : PUBLIC_V1_PATHS)
-  const loggerConfig = {
-    level: options.logLevel ?? config.LOG_LEVEL,
-    redact: {
-      paths: [
-        'req.headers.authorization',
-        'req.headers.cookie',
-        'req.headers["set-cookie"]',
-        'req.headers["x-api-key"]',
-        'req.headers["x-internal-secret"]',
-        'req.headers["proxy-authorization"]',
-        'req.headers["x-auth-token"]',
-        'req.headers["x-access-token"]',
-        'res.headers["set-cookie"]',
-        'headers.authorization',
-        'headers.cookie',
-        'headers["set-cookie"]',
-        'headers["x-api-key"]',
-        'headers["x-internal-secret"]',
-        'authorization',
-        'cookie',
-        'apiKey',
-        'x-api-key',
-        'x-internal-secret',
-        'token',
-        'accessToken',
-        'refreshToken',
-        'secret',
-        'password',
-        'email',
-        '*.authorization',
-        '*.cookie',
-        '*.apiKey',
-        '*.token',
-        '*.secret',
-        '*.password',
-        '*.email',
-      ],
-      censor: '[REDACTED]',
-    },
-    serializers: {
-      req(request: { method?: string; url?: string; hostname?: string; ip?: string; headers?: Record<string, unknown> }) {
-        const headers = request.headers ?? {}
-        return {
-          method: request.method,
-          url: sanitizeLoggedUrl(request.url),
-          host: request.hostname,
-          remoteAddress: request.ip,
-          clientIp: resolveRequestClientIp({ ip: request.ip, headers }),
-          cfRay: extractHeaderString(headers['cf-ray'], 64),
-          cfCountry: extractHeaderString(headers['cf-ipcountry'], 8),
-          userAgent: extractHeaderString(headers['user-agent'], 256),
-          headers: redactRequestHeaders(headers),
-        }
-      },
-    },
-    transport:
-      !options.loggerStream && config.NODE_ENV === 'development'
-        ? { target: 'pino-pretty' }
-        : undefined,
-    ...(options.loggerStream ? { stream: options.loggerStream } : {}),
-  }
+  const trustEdgeMode = readTrustEdgeMode()
 
   const app = Fastify({
     trustProxy: trustedProxyHops(config.TRUSTED_PROXY_HOPS),
-    logger: loggerConfig,
+    logger: buildLoggerOptions(options, trustEdgeMode),
     requestIdHeader: 'x-request-id',
     genReqId: () => crypto.randomUUID(),
   })
@@ -229,7 +108,7 @@ export async function buildApp(options: AppOptions = {}) {
   app.addHook('onRequest', async (request, reply) => {
     const headers = request.headers as Record<string, unknown>
     const childLog = request.log.child({
-      clientIp: resolveRequestClientIp({ ip: request.ip, headers }),
+      clientIp: resolveRequestClientIp({ ip: request.ip, headers }, trustEdgeMode),
       cfRay: extractHeaderString(headers['cf-ray'], 64),
       cfCountry: extractHeaderString(headers['cf-ipcountry'], 8),
       userAgent: extractHeaderString(headers['user-agent'], 256),
