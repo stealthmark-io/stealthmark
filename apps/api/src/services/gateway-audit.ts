@@ -46,9 +46,8 @@ const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000
 const MAX_AUDIT_REASON_CHARS = 500
 
 export interface EventHashMetadata {
-  ipAddress?: string | null
-  passportId?: string | null
-  version?: 'v1' | 'v2'
+  ipAddress: string | null | undefined
+  passportId: string | null | undefined
 }
 
 export function sanitizeAuditReason(reason: string | null | undefined): string | null {
@@ -91,28 +90,18 @@ export function computeEventHash(
   action: string,
   reason: string | null | undefined,
   createdAt: Date,
-  metadataOrIp?: EventHashMetadata | string | null,
-  passportIdArg?: string | null
+  { ipAddress, passportId }: EventHashMetadata
 ): string {
-  const meta: EventHashMetadata =
-    typeof metadataOrIp === 'string' || metadataOrIp === null
-      ? { ipAddress: metadataOrIp, passportId: passportIdArg }
-      : metadataOrIp ?? {}
-
-  if (meta.version === 'v1') {
-    return computeLegacyEventHashV1(prevHash, siteId, agentId, action, reason, createdAt)
-  }
-
   const sanitizedReason = sanitizeAuditReason(reason) ?? ''
   const payload = [
     'v2',
     prevHash,
     siteId,
     agentId || '',
-    meta.passportId || '',
+    passportId || '',
     action,
     sanitizedReason,
-    meta.ipAddress || '',
+    ipAddress || '',
     createdAt.toISOString(),
   ].join('|')
 

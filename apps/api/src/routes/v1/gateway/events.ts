@@ -37,9 +37,10 @@ const ipAddressFieldSchema = z
   )
 
 // The organization is always taken from the site; a client-supplied orgId is ignored.
+// Ids are lowercased because the audit hash binds them and Postgres returns uuid columns in lowercase.
 const recordAccessSchema = z.object({
-  agentId: z.string().uuid().optional(),
-  passportId: z.string().uuid().optional(),
+  agentId: z.string().uuid().toLowerCase().optional(),
+  passportId: z.string().uuid().toLowerCase().optional(),
   action: z.enum(['allowed', 'blocked', 'rate_limited', 'revoked']),
   reason: z
     .string()
