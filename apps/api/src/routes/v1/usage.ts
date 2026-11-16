@@ -3,8 +3,9 @@ import { FastifyInstance } from 'fastify'
 import { eq, and, gte, lte, inArray } from 'drizzle-orm'
 import { usageRecords, registeredSites, type DbClient } from '@stealthmark/db'
 import {
+  BLOCKED_EVENT_TYPE,
   QUOTA_RETRY_AFTER_SECONDS,
-  ZERO_UNIT_EVENT_TYPE,
+  hourlyBillableCeiling,
   usageIngestRequestSchema,
   type UsageIngestResponse,
   type UsageQuotaExceeded,
@@ -19,6 +20,7 @@ interface IngestCounters {
   rejected: number
   duplicates: number
   skippedBlocked: number
+  skippedCapped: number
 }
 
 function toIngestResponse(counters: IngestCounters, quota: QuotaSnapshot): UsageIngestResponse {
@@ -27,6 +29,7 @@ function toIngestResponse(counters: IngestCounters, quota: QuotaSnapshot): Usage
     rejected: counters.rejected,
     duplicates: counters.duplicates,
     skipped_blocked: counters.skippedBlocked,
+    skipped_capped: counters.skippedCapped,
     cap: quota.cap,
     used: quota.used,
     remaining: quota.remaining,
@@ -207,10 +210,10 @@ export async function usageRoutes(app: FastifyInstance, options: { db: DbClient 
       })
     }
     const { events, source } = parsed.data
-    if (request.internalCaller && events.some((event) => event.event_type !== ZERO_UNIT_EVENT_TYPE)) {
+    if (request.internalCaller && events.some((event) => event.event_type !== BLOCKED_EVENT_TYPE)) {
       return reply.code(403).send({
         error: 'forbidden',
-        message: `The internal secret may only ingest ${ZERO_UNIT_EVENT_TYPE} events`,
+        message: `The internal secret may only ingest ${BLOCKED_EVENT_TYPE} events`,
       })
     }
 
@@ -240,8 +243,8 @@ export async function usageRoutes(app: FastifyInstance, options: { db: DbClient 
     const result = await reserveEvents(
       db,
       orgId,
-      async (tx) => {
-        const plan = await planIngest(tx, orgId, batch.rows, now)
+      async (tx, quotaBefore) => {
+        const plan = await planIngest(tx, orgId, batch.rows, now, hourlyBillableCeiling(quotaBefore.alertCap))
         return { unitsPerEvent: plan.billableRows.map((row) => row.units), plan }
       },
       (tx, acceptedBillable, plan) =>
@@ -259,6 +262,7 @@ export async function usageRoutes(app: FastifyInstance, options: { db: DbClient 
       rejected: result.rejected,
       duplicates: batch.duplicates + plan.duplicates + (attempted - result.stored),
       skippedBlocked: plan.skippedBlocked,
+      skippedCapped: plan.skippedCapped,
     }
 
     if (plan.billableRows.length === 0) {
@@ -275,6 +279,7 @@ export async function usageRoutes(app: FastifyInstance, options: { db: DbClient 
         rejected: counters.rejected,
         duplicates: counters.duplicates,
         skipped_blocked: counters.skippedBlocked,
+        skipped_capped: counters.skippedCapped,
         cap: quota.cap,
         used: quota.used,
         remaining: 0,

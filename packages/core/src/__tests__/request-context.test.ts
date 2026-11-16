@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createStealthMark } from '../create.js';
-import { buildEventMetadata, MAX_HOST_LENGTH, normalizeHost, resolveRequestHost } from '../request-context.js';
+import {
+  buildEventMetadata,
+  MAX_HOST_LENGTH,
+  normalizeClientAddress,
+  normalizeHost,
+  resolveClientAddress,
+  resolveRequestHost,
+} from '../request-context.js';
 
 describe('normalizeHost', () => {
   it('lowercases the host', () => {
@@ -164,5 +171,50 @@ describe('resolveAgentIdentifier', () => {
   it('falls back to the User-Agent when detection has no canonical name', async () => {
     const { resolveAgentIdentifier } = await import('../usage-reporter.js');
     expect(resolveAgentIdentifier({ 'user-agent': 'SomeAgent/1.0' }, { isAgent: true, method: 'accept-header' })).toBe('SomeAgent/1.0');
+  });
+});
+
+describe('normalizeClientAddress', () => {
+  it('keeps an IPv4 address and strips its port', () => {
+    expect(normalizeClientAddress(' 203.0.113.7 ')).toBe('203.0.113.7');
+    expect(normalizeClientAddress('203.0.113.7:51234')).toBe('203.0.113.7');
+  });
+
+  it('unwraps an IPv4-mapped IPv6 address', () => {
+    expect(normalizeClientAddress('::ffff:203.0.113.7')).toBe('203.0.113.7');
+  });
+
+  it('reduces an IPv6 address to its /64, so one subscriber cannot rotate through its prefix', () => {
+    expect(normalizeClientAddress('2001:DB8:0:1:aaaa:bbbb:cccc:dddd')).toBe('2001:db8:0:1::/64');
+    expect(normalizeClientAddress('2001:db8:0:1::42')).toBe('2001:db8:0:1::/64');
+    expect(normalizeClientAddress('[2001:db8::1]:443')).toBe('2001:db8:0:0::/64');
+    expect(normalizeClientAddress('fe80::1%eth0')).toBe('fe80:0:0:0::/64');
+  });
+
+  it('returns undefined for a missing or malformed value', () => {
+    for (const value of [undefined, null, '', 'unknown', '999.1.1.1', '1.2.3', '2001:db8::1::2', 'g::1', 'x'.repeat(80)]) {
+      expect(normalizeClientAddress(value)).toBeUndefined();
+    }
+  });
+});
+
+describe('resolveClientAddress', () => {
+  const headers = { 'x-forwarded-for': '198.51.100.9, 203.0.113.7' };
+
+  it('ignores X-Forwarded-For by default and uses the socket address', () => {
+    expect(resolveClientAddress(headers, { socketAddress: '192.0.2.1' })).toBe('192.0.2.1');
+    expect(resolveClientAddress(headers)).toBeUndefined();
+  });
+
+  it('uses the last X-Forwarded-For hop when trusted: the first one is written by the client', () => {
+    expect(resolveClientAddress(headers, { trustForwardedFor: true, socketAddress: '192.0.2.1' })).toBe('203.0.113.7');
+    expect(resolveClientAddress(new Headers(headers), { trustForwardedFor: true })).toBe('203.0.113.7');
+  });
+
+  it('falls back to the socket address when the trusted header is missing or unreadable', () => {
+    expect(resolveClientAddress({}, { trustForwardedFor: true, socketAddress: '192.0.2.1' })).toBe('192.0.2.1');
+    expect(
+      resolveClientAddress({ 'x-forwarded-for': 'garbage' }, { trustForwardedFor: true, socketAddress: '192.0.2.1' })
+    ).toBe('192.0.2.1');
   });
 });

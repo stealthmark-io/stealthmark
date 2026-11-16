@@ -125,7 +125,8 @@ export async function getQuota(db: DbExecutor, orgId: string, now: Date = new Da
  * Atomically accepts the longest prefix of `unitsPerEvent` that fits in the remaining quota.
  * The organization row is locked for the whole transaction, so concurrent ingests for one org
  * serialize and the cap can never be overshot. `prepare` runs first, under that lock, and decides the units of
- * each event (it is where duplicates and rate limited free rows are filtered with race free reads). `persist`
+ * each event (it is where duplicates and rate limited rows are filtered with race free reads); it receives the
+ * quota as it stands before the batch, so it can size limits that depend on the organization's cap. `persist`
  * always runs inside the same transaction (also when nothing was accepted, so the caller can store events that
  * cost no units alongside) and receives how many leading events were accepted. In credits mode the balance is
  * decremented under a WHERE guard and never goes below zero. Returns null when the organization does not exist.
@@ -133,7 +134,7 @@ export async function getQuota(db: DbExecutor, orgId: string, now: Date = new Da
 export async function reserveEvents<TPlan, TStored>(
   db: DbClient,
   orgId: string,
-  prepare: (tx: Transaction) => Promise<ReservePlan<TPlan>>,
+  prepare: (tx: Transaction, before: QuotaSnapshot) => Promise<ReservePlan<TPlan>>,
   persist: (tx: Transaction, acceptedEvents: number, plan: TPlan) => Promise<TStored>,
   now: Date = new Date(),
 ): Promise<ReserveResult<TPlan, TStored> | null> {
@@ -146,9 +147,9 @@ export async function reserveEvents<TPlan, TStored>(
       .limit(1)
     if (!org) return null
 
-    const { unitsPerEvent, plan } = await prepare(tx)
     const used = await sumPeriodUnits(tx, orgId, now)
     const before = computeQuota(org, used, now)
+    const { unitsPerEvent, plan } = await prepare(tx, before)
 
     let acceptedEvents = 0
     let grantedUnits = 0

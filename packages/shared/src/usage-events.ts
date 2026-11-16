@@ -12,23 +12,42 @@ import { z } from 'zod'
  *   rate limited instead: at most MAX_BLOCKED_EVENTS_PER_ORG_PER_HOUR rows per organization per rolling hour,
  *   the excess is dropped and reported as `skipped_blocked`. Its timestamp is always server time.
  * - agent_manifest: an agent fetch of a manifest or well-known document. Counted.
+ * - agent_capped: an agent request that was served but is not billed because a rate cap was reached. Agent
+ *   identification is self-declared, so the caps bound what one client repeating a crawler User-Agent can spend.
+ *   Free like agent_blocked (units 0, server time, accepted over the cap) and rate limited the same way with its
+ *   own allowance, MAX_CAPPED_EVENTS_PER_ORG_PER_HOUR; the excess is dropped and reported as `skipped_capped`.
+ *   Two sources, told apart by `metadata.reason`: the SDK reports it for a client over its per-client hourly cap
+ *   (CLIENT_CAP_REASON), and the ingest API turns counted SDK events into it once the organization passed its
+ *   hourly ceiling of billable events, hourlyBillableCeiling (ORG_HOURLY_CAP_REASON).
  *
  * Units are never trusted from SDK traffic. For source 'middleware' (the default, and the only source an
  * ordinary tenant key can use) the server ignores `units` and forces 1 for agent_request and agent_manifest and
- * 0 for agent_blocked. Only source 'api' (internal usage, requires a platform/admin key) honors `units`, an
- * integer between 1 and MAX_EVENT_UNITS (agent_blocked is still forced to 0). A non-platform key that sends
- * source 'api' is treated as 'middleware'. The only payload shape rejected outright is `units` 0 on an event
- * that is not agent_blocked.
+ * 0 for agent_blocked and agent_capped. Only source 'api' (internal usage, requires a platform/admin key) honors
+ * `units`, an integer between 1 and MAX_EVENT_UNITS (the free types are still forced to 0), and is exempt from the
+ * hourly ceiling. A non-platform key that sends source 'api' is treated as 'middleware'. The only payload shape
+ * rejected outright is `units` 0 on an event that is not agent_blocked or agent_capped.
  */
-export const AGENT_EVENT_TYPES = ['agent_request', 'agent_blocked', 'agent_manifest'] as const
+export const AGENT_EVENT_TYPES = ['agent_request', 'agent_blocked', 'agent_manifest', 'agent_capped'] as const
 export type AgentEventType = (typeof AGENT_EVENT_TYPES)[number]
 
-/** The only event type that is recorded without consuming quota. */
-export const ZERO_UNIT_EVENT_TYPE = 'agent_blocked' as const satisfies AgentEventType
+export const BLOCKED_EVENT_TYPE = 'agent_blocked' as const satisfies AgentEventType
+export const CAPPED_EVENT_TYPE = 'agent_capped' as const satisfies AgentEventType
+
+/** The event types that are recorded without consuming quota. */
+export const ZERO_UNIT_EVENT_TYPES: readonly AgentEventType[] = [BLOCKED_EVENT_TYPE, CAPPED_EVENT_TYPE]
+
+export function isZeroUnitEventType(eventType: AgentEventType | undefined): boolean {
+  return eventType !== undefined && ZERO_UNIT_EVENT_TYPES.includes(eventType)
+}
 
 export function defaultUnitsFor(eventType: AgentEventType): number {
-  return eventType === ZERO_UNIT_EVENT_TYPE ? 0 : 1
+  return isZeroUnitEventType(eventType) ? 0 : 1
 }
+
+/** `metadata.reason` of an agent_capped row the SDK reported for a client over its per-client hourly cap. */
+export const CLIENT_CAP_REASON = 'client_cap'
+/** `metadata.reason` of an agent_capped row the ingest API made out of a counted event over the hourly ceiling. */
+export const ORG_HOURLY_CAP_REASON = 'org_hourly_cap'
 
 export const USAGE_EVENT_SOURCES = ['gateway', 'middleware', 'api'] as const
 export type UsageEventSource = (typeof USAGE_EVENT_SOURCES)[number]
@@ -41,6 +60,20 @@ export const MAX_INGEST_BATCH = 500
 export const MAX_EVENT_UNITS = 100
 /** Free (agent_blocked) rows stored per organization per rolling hour. */
 export const MAX_BLOCKED_EVENTS_PER_ORG_PER_HOUR = 500
+/** Free (agent_capped) rows stored per organization per rolling hour, apart from the agent_blocked allowance. */
+export const MAX_CAPPED_EVENTS_PER_ORG_PER_HOUR = 500
+/** Share of the period cap that SDK traffic may bill to one organization per rolling hour. */
+export const HOURLY_BILLABLE_CEILING_FRACTION = 0.05
+export const MIN_HOURLY_BILLABLE_CEILING = 500
+
+/**
+ * Units of SDK traffic billed to one organization per rolling hour before the rest is stored as agent_capped.
+ * `periodCap` is the monthly cap (free, enterprise) or used + balance (credits): spending a whole balance takes
+ * at least 1 / HOURLY_BILLABLE_CEILING_FRACTION hours, whatever the number of clients.
+ */
+export function hourlyBillableCeiling(periodCap: number): number {
+  return Math.max(MIN_HOURLY_BILLABLE_CEILING, Math.floor(periodCap * HOURLY_BILLABLE_CEILING_FRACTION))
+}
 export const MAX_EVENT_METADATA_BYTES = 1024
 /**
  * Only these metadata keys are stored; every other key is dropped. Values must be strings, numbers or booleans.
@@ -97,8 +130,8 @@ export const usageEventInputSchema = z
     occurred_at: z.string().datetime({ offset: true }).optional(),
     metadata: metadataSchema.optional(),
   })
-  .refine((event) => event.units !== 0 || event.event_type === ZERO_UNIT_EVENT_TYPE, {
-    message: `units 0 is only allowed for event_type ${ZERO_UNIT_EVENT_TYPE}`,
+  .refine((event) => event.units !== 0 || isZeroUnitEventType(event.event_type), {
+    message: `units 0 is only allowed for event_type ${ZERO_UNIT_EVENT_TYPES.join(' or ')}`,
     path: ['units'],
   })
 export type UsageEventInput = z.infer<typeof usageEventInputSchema>
@@ -118,13 +151,16 @@ export type UsageIngestRequest = z.infer<typeof usageIngestRequestSchema>
  * - rejected: billable events cut by the quota (not stored).
  * - duplicates: events whose event_id was already seen, in the same batch or an earlier one (not stored, free).
  * - skipped_blocked: agent_blocked events dropped by the hourly cap (not stored, free).
- * Older servers omit the last two; they parse as 0.
+ * - skipped_capped: agent_capped events dropped by their hourly cap (not stored, free). Counted events that the
+ *   hourly ceiling turned into agent_capped are in `accepted` when stored and here when not.
+ * Older servers omit the last three; they parse as 0.
  */
 export const usageIngestResponseSchema = z.object({
   accepted: z.number().int().min(0),
   rejected: z.number().int().min(0),
   duplicates: z.number().int().min(0).default(0),
   skipped_blocked: z.number().int().min(0).default(0),
+  skipped_capped: z.number().int().min(0).default(0),
   cap: z.number().int().nullable(),
   used: z.number().int().min(0),
   remaining: z.number().int().min(0).nullable(),
@@ -142,6 +178,7 @@ export const usageQuotaExceededSchema = z.object({
   rejected: z.number().int().min(0),
   duplicates: z.number().int().min(0).default(0),
   skipped_blocked: z.number().int().min(0).default(0),
+  skipped_capped: z.number().int().min(0).default(0),
   cap: z.number().int().nullable(),
   used: z.number().int().min(0),
   remaining: z.literal(0),

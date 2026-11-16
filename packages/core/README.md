@@ -76,7 +76,7 @@ const sm = createStealthMark({
 });
 
 sm.recordAgentEvent({
-  event_type: 'agent_request', // 'agent_request' | 'agent_blocked' | 'agent_manifest'
+  event_type: 'agent_request', // 'agent_request' | 'agent_blocked' | 'agent_manifest' | 'agent_capped'
   agent_identifier: 'GPTBot',
   metadata: { path: '/pricing', method: 'GET' },
 });
@@ -89,7 +89,17 @@ The `@stealthmark/next` and `@stealthmark/express` adapters call `recordAgentEve
 
 **Site attribution.** The adapters add `metadata.host` to every metered event (the `Host` header, lowercased, no port). The console groups and filters by `metadata.host`, automatically and with no config. Set `trustForwardedHost: true` to read the first `X-Forwarded-Host` value instead; enable it only behind a proxy you control.
 
-`siteId` (or the `STEALTHMARK_SITE_ID` env var) is optional and only stored on the event as `site_id`. It must be the UUID of a site registered to the same organization, otherwise it is stored as null; a value that is not a UUID is ignored with one warning. `normalizeHost`, `resolveRequestHost` and `buildEventMetadata` are exported if you meter events yourself.
+`siteId` (or the `STEALTHMARK_SITE_ID` env var) is optional and only stored on the event as `site_id`. It must be the UUID of a site registered to the same organization, otherwise it is stored as null; a value that is not a UUID is ignored with one warning. `normalizeHost`, `resolveRequestHost`, `resolveClientAddress` and `buildEventMetadata` are exported if you meter events yourself.
+
+**Spend caps.** Identification is self-declared, so one client can repeat a crawler `User-Agent` in a loop. Two caps bound what that can cost you:
+
+- **Per client, in the SDK.** Each client address is billed at most `maxAgentEventsPerClientPerHour` events per hour (default 600; `0` turns the cap off). The count is kept in memory, per process, for up to 10,000 addresses, and the address is never sent to StealthMark. IPv6 addresses are counted per /64. Events over the cap are reported as `agent_capped`: free, shown in the console as not billed, at most 500 per client per hour; later ones are not reported.
+  - Express and Fastify key the cap on `req.ip` / `request.ip`, which follows your framework's `trust proxy` / `trustProxy` setting. Next.js middleware has no socket address: set `trustForwardedFor: true` and the last `X-Forwarded-For` hop is used (earlier hops can be written by the client). Enable it only when a proxy or platform you trust sets that header. The option applies to every adapter.
+  - Requests with no usable address (Next.js without `trustForwardedFor`, `recordAgentEvent(event)` called without its second `clientAddress` argument, or more than 10,000 live addresses) share one bucket with ten times the cap.
+  - Limits: the count is per process, so on serverless platforms every warm instance has its own, and it does not stop a client that rotates addresses.
+- **Per organization, in the API.** The hosted API bills SDK traffic up to 5% of your period cap per rolling hour (the monthly cap, or events used plus credit balance on prepaid plans), and never less than 500. Events over that ceiling are stored as `agent_capped` at no cost, up to 500 per hour; the rest are dropped. It applies to every SDK version and does not depend on client addresses.
+
+A real crawler that sends more than the cap from one address in an hour is billed up to the cap. The rest of that hour appears as `agent_capped` or not at all, so its event count is a lower bound.
 
 Behavior:
 
@@ -115,6 +125,7 @@ usage.record({ event_type: 'agent_request' });
 Only when an API key is configured (`apiKey` option or `STEALTHMARK_API_KEY`). Without a key the SDK makes no network calls. Requests not identified as agents are never reported.
 
 - Usage events (`POST /v1/usage/ingest`, sent with `Authorization: Bearer $STEALTHMARK_API_KEY`): event type, agent identifier, request path, method, host and timestamp. When no better identifier exists, the agent identifier is the request's `User-Agent`. Set `reportUsage: false` to turn this off.
+- The client address the per-client cap counts on is not part of the event: it stays in the memory of your process.
 
 The default host is https://api.stealthmark.io, the StealthMark hosted API. Override it with `usageEndpoint` or `STEALTHMARK_USAGE_ENDPOINT`.
 

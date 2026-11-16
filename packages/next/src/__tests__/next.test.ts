@@ -421,6 +421,50 @@ describe('stealthmark usage metering', () => {
       });
     });
   });
+
+  describe('per-client cap', () => {
+    const capped = { ...config, maxAgentEventsPerClientPerHour: 1 };
+    const agent = { 'user-agent': 'GPTBot/1.0' };
+
+    async function eventTypes(): Promise<unknown[]> {
+      return (await ingestedEvents()).map((event) => event.event_type);
+    }
+
+    it('bills up to the cap per client and reports the rest as agent_capped when X-Forwarded-For is trusted', async () => {
+      const mw = stealthmark({ ...capped, trustForwardedFor: true });
+      await mw(request('/a', { ...agent, 'x-forwarded-for': '203.0.113.7' }));
+      await mw(request('/b', { ...agent, 'x-forwarded-for': '203.0.113.7' }));
+      await mw(request('/c', { ...agent, 'x-forwarded-for': '203.0.113.8' }));
+
+      expect(await eventTypes()).toEqual(['agent_request', 'agent_capped', 'agent_request']);
+    });
+
+    it('does not let a forged first X-Forwarded-For hop open a new bucket', async () => {
+      const mw = withStealthMark(() => new Response('ok'), { ...capped, trustForwardedFor: true });
+      await mw(request('/a', { ...agent, 'x-forwarded-for': '198.51.100.1, 203.0.113.7' }));
+      await mw(request('/b', { ...agent, 'x-forwarded-for': '198.51.100.2, 203.0.113.7' }));
+
+      expect(await eventTypes()).toEqual(['agent_request', 'agent_capped']);
+    });
+
+    it('ignores X-Forwarded-For by default: all clients share one bucket with ten times the cap', async () => {
+      const mw = stealthmark(capped);
+      for (let i = 0; i < 11; i += 1) {
+        await mw(request('/a', { ...agent, 'x-forwarded-for': `203.0.113.${i}` }));
+      }
+
+      const types = await eventTypes();
+      expect(types.slice(0, 10)).toEqual(new Array(10).fill('agent_request'));
+      expect(types[10]).toBe('agent_capped');
+    });
+
+    it('leaves free agent_blocked events out of the cap', async () => {
+      const mw = stealthmark({ ...capped, trustForwardedFor: true, agentPolicy: 'block' });
+      for (let i = 0; i < 3; i += 1) await mw(request('/a', { ...agent, 'x-forwarded-for': '203.0.113.7' }));
+
+      expect(await eventTypes()).toEqual(['agent_blocked', 'agent_blocked', 'agent_blocked']);
+    });
+  });
 });
 
 describe('withStealthMark typing', () => {

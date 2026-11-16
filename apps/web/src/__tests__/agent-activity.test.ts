@@ -806,6 +806,14 @@ describe('AgentActivityView markup', () => {
     expect(html).not.toContain(AGENT_ACTIVITY_EMPTY_COPY);
   });
 
+  it('labels an agent_capped event as not billed', () => {
+    const capped = { ...data.events[0], id: 'e2', event_type: 'agent_capped', metadata: { ...data.events[0].metadata, reason: 'client_cap' } };
+    const html = render({ data: { ...data, events: [capped] } });
+    expect(html).toContain('agent_capped');
+    expect(html).toContain('not billed');
+    expect(render({ data })).not.toContain('not billed');
+  });
+
   it('renders the per-agent table and recent events when populated', () => {
     const html = render({ data });
     expect(html).toContain('Events this period');

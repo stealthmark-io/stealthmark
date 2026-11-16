@@ -13,6 +13,7 @@ import type {
 import { detectAgent } from './detect-agent.js';
 import { generateManifest, serializeManifest } from './manifest.js';
 import { createUsageReporter, type UsageReporter } from './usage-reporter.js';
+import { applyClientCap, createClientEventCap, resolveClientCapLimit } from './client-cap.js';
 
 /** The StealthMark runtime instance returned by createStealthMark() */
 export interface StealthMarkInstance {
@@ -32,8 +33,13 @@ export interface StealthMarkInstance {
   readonly siteId: string | undefined;
   /** Whether the adapters read the request host from X-Forwarded-Host instead of Host (config `trustForwardedHost`, default false) */
   readonly trustForwardedHost: boolean;
-  /** Meter one agent event. Call exactly once per request identified as an AI agent. */
-  recordAgentEvent: (event: UsageEvent) => void;
+  /** Whether the adapters key the per-client cap on the last X-Forwarded-For hop (config `trustForwardedFor`, default false) */
+  readonly trustForwardedFor: boolean;
+  /**
+   * Meter one agent event. Call exactly once per request identified as an AI agent. `clientAddress` (from
+   * `resolveClientAddress`) is the key of the per-client cap; without it the event counts in the shared bucket.
+   */
+  recordAgentEvent: (event: UsageEvent, clientAddress?: string) => void;
 }
 
 type EnvName = 'STEALTHMARK_API_KEY' | 'STEALTHMARK_USAGE_ENDPOINT' | 'STEALTHMARK_SITE_ID';
@@ -98,6 +104,8 @@ export function createStealthMark(config: StealthMarkConfig): StealthMarkInstanc
   const usageApiKey = config.apiKey ?? readEnv('STEALTHMARK_API_KEY');
   const siteId = resolveSiteId(config.siteId);
   const trustForwardedHost = config.trustForwardedHost === true;
+  const trustForwardedFor = config.trustForwardedFor === true;
+  const clientCap = createClientEventCap(resolveClientCapLimit(config.maxAgentEventsPerClientPerHour));
   const usage = createUsageReporter({
     apiKey: config.reportUsage === false ? '' : (usageApiKey ?? ''),
     endpoint: config.usageEndpoint ?? readEnv('STEALTHMARK_USAGE_ENDPOINT'),
@@ -117,6 +125,7 @@ export function createStealthMark(config: StealthMarkConfig): StealthMarkInstanc
     agentPolicy: config.agentPolicy ?? 'observe',
     siteId,
     trustForwardedHost,
+    trustForwardedFor,
 
     detect(headers: Headers | Record<string, string | undefined>): DetectionResult {
       return detectAgent(headers, config.agentPatterns);
@@ -126,8 +135,10 @@ export function createStealthMark(config: StealthMarkConfig): StealthMarkInstanc
 
     usage,
 
-    recordAgentEvent(event: UsageEvent): void {
-      usage.record(siteId && !event.site_id ? { ...event, site_id: siteId } : event);
+    recordAgentEvent(event: UsageEvent, clientAddress?: string): void {
+      const metered = clientCap ? applyClientCap(clientCap, event, clientAddress) : event;
+      if (metered === null) return;
+      usage.record(siteId && !metered.site_id ? { ...metered, site_id: siteId } : metered);
     },
   };
 }

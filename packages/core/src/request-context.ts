@@ -93,3 +93,67 @@ export function buildEventMetadata(input: { path: string; method?: string; host?
   }
   return metadata;
 }
+
+/** Longest textual IPv6 address with a zone id and a port; anything longer is not an address. */
+const MAX_CLIENT_ADDRESS_LENGTH = 64;
+const IPV4_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+const IPV6_GROUP_PATTERN = /^[0-9a-f]{1,4}$/;
+const IPV4_MAPPED_PREFIX = '::ffff:';
+
+function isIpv4(address: string): boolean {
+  const octets = IPV4_PATTERN.exec(address);
+  return octets !== null && octets.slice(1).every((octet) => Number(octet) <= 255);
+}
+
+/** Drops the brackets, port and zone id that can surround an address in a header or a socket field. */
+function stripAddressDecoration(value: string): string {
+  if (value.startsWith('[')) return value.slice(1).split(']')[0];
+  const withoutZone = value.split('%')[0];
+  const isIpv4WithPort = withoutZone.includes('.') && withoutZone.split(':').length === 2;
+  return isIpv4WithPort ? withoutZone.split(':')[0] : withoutZone;
+}
+
+/** The /64 an IPv6 address belongs to, written as `a:b:c:d::/64`; undefined when it is not an IPv6 address. */
+function ipv6Prefix64(address: string): string | undefined {
+  const halves = address.split('::');
+  if (halves.length > 2) return undefined;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves[1] ? halves[1].split(':') : [];
+  const missing = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  if (missing < 0) return undefined;
+  const groups = [...head, ...new Array<string>(missing).fill('0'), ...tail];
+  if (groups.length !== 8 || !groups.every((group) => IPV6_GROUP_PATTERN.test(group))) return undefined;
+  return `${groups.slice(0, 4).map((group) => group.replace(/^0+(?=.)/, '')).join(':')}::/64`;
+}
+
+/**
+ * Normalises a client address into the key the per-client cap counts on: an IPv4 address as is, an IPv6 address
+ * reduced to its /64 (one subscriber owns the whole prefix). Returns undefined for a missing or malformed value.
+ */
+export function normalizeClientAddress(value: string | null | undefined): string | undefined {
+  const trimmed = (value ?? '').trim().toLowerCase();
+  if (trimmed === '' || trimmed.length > MAX_CLIENT_ADDRESS_LENGTH) return undefined;
+  const bare = stripAddressDecoration(trimmed);
+  const address = bare.startsWith(IPV4_MAPPED_PREFIX) ? bare.slice(IPV4_MAPPED_PREFIX.length) : bare;
+  return isIpv4(address) ? address : ipv6Prefix64(address);
+}
+
+function lastForwardedHop(value: string | undefined): string | undefined {
+  return value?.split(',').at(-1);
+}
+
+/**
+ * Resolves the address the per-client cap is keyed on. By default only the socket address counts, because
+ * X-Forwarded-For is client controlled unless a trusted proxy sets it. With `trustForwardedFor` the last hop of
+ * the header wins (the one the nearest proxy appended; earlier hops can be forged) and the socket address is
+ * the fallback. Returns undefined when neither is usable.
+ */
+export function resolveClientAddress(
+  headers: HeaderSource,
+  options: { trustForwardedFor?: boolean; socketAddress?: string | null } = {}
+): string | undefined {
+  const forwarded = options.trustForwardedFor
+    ? normalizeClientAddress(lastForwardedHop(readHeader(headers, 'x-forwarded-for')))
+    : undefined;
+  return forwarded ?? normalizeClientAddress(options.socketAddress);
+}

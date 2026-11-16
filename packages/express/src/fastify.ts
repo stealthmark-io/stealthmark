@@ -19,6 +19,8 @@ export interface FastifyRequestLike {
   url?: string;
   protocol?: string;
   hostname?: string;
+  /** Client address as Fastify resolves it (it follows the server's `trustProxy` option). */
+  ip?: string;
   headers: Record<string, string | string[] | undefined>;
 }
 
@@ -77,7 +79,7 @@ export function stealthmarkFastify(config: StealthMarkConfig) {
       return;
     }
 
-    meterAgentRequest(sm, headersRecord, agentDetection, pathOnly, request.method);
+    meterAgentRequest(sm, headersRecord, agentDetection, pathOnly, request.method, request.ip);
 
     if (servesManifest) {
       reply

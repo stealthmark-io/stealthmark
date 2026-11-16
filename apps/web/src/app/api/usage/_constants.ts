@@ -3,6 +3,8 @@
  * without pulling the route helpers (which use Node APIs) into the browser bundle.
  */
 export const BLOCKED_EVENT_TYPE = 'agent_blocked';
+/** An agent request that was served but not billed because a rate cap was reached (units 0). */
+export const CAPPED_EVENT_TYPE = 'agent_capped';
 export const UNKNOWN_AGENT = 'unknown';
 /** Most events the agents route scans per request; a scan that fills it may have left older events out. */
 export const AGENT_MAX_ROWS = 5000;

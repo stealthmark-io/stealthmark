@@ -122,8 +122,8 @@ export function checkApiKey(apiKey: string | undefined): ApiKeyCheck {
 }
 
 function normalizeEvent(event: UsageEvent): UsageEvent {
-  const isBlocked = event.event_type === 'agent_blocked';
-  const minUnits = isBlocked ? 0 : 1;
+  const isFree = event.event_type === 'agent_blocked' || event.event_type === 'agent_capped';
+  const minUnits = isFree ? 0 : 1;
   const requested = event.units;
   const units = typeof requested === 'number' && Number.isInteger(requested) && requested >= minUnits ? requested : minUnits;
   return {

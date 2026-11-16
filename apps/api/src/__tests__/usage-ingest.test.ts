@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { buildApp } from '../app.js'
-import { MAX_BLOCKED_EVENTS_PER_ORG_PER_HOUR, MAX_INGEST_BATCH } from '@stealthmark/shared'
+import {
+  MAX_BLOCKED_EVENTS_PER_ORG_PER_HOUR,
+  MAX_CAPPED_EVENTS_PER_ORG_PER_HOUR,
+  MAX_INGEST_BATCH,
+  MIN_HOURLY_BILLABLE_CEILING,
+  hourlyBillableCeiling,
+} from '@stealthmark/shared'
 import type { DbClient } from '@stealthmark/db'
 import { checkQuotaAlerts } from '../services/quota-alerts.js'
 import { config } from '../config.js'
@@ -34,6 +40,10 @@ async function ingest(state: FakeMeteringState, payload: unknown, headers: Recor
 interface LedgerScript {
   /** agent_blocked rows already stored for the organization in the last hour. */
   blockedInHour: number
+  /** agent_capped rows already stored for the organization in the last hour. */
+  cappedInHour: number
+  /** Units already billed to SDK traffic of the organization in the last hour. */
+  billableInHour: number
   /** event_ids already stored; filled by inserts so a second request sees the first one. */
   storedEventIds: Set<string>
   /** event_ids that only the unique index knows about: the pre-check misses them, the insert conflicts. */
@@ -41,13 +51,13 @@ interface LedgerScript {
 }
 
 function createLedger(overrides: Partial<LedgerScript> = {}): LedgerScript {
-  return { blockedInHour: 0, storedEventIds: new Set(), racedEventIds: new Set(), ...overrides }
+  return { blockedInHour: 0, cappedInHour: 0, billableInHour: 0, storedEventIds: new Set(), racedEventIds: new Set(), ...overrides }
 }
 
 type Row = Record<string, unknown>
 
 /**
- * Wraps the metering fake with the two ledger reads (event_id lookup, blocked-row count) and an
+ * Wraps the metering fake with the ledger reads (event_id lookup and the three hourly counts) and an
  * INSERT ... ON CONFLICT DO NOTHING ... RETURNING that honors the partial unique index on (org_id, event_id).
  */
 function createLedgerDb(state: FakeMeteringState, ledger: LedgerScript): DbClient {
@@ -64,6 +74,8 @@ function createLedgerDb(state: FakeMeteringState, ledger: LedgerScript): DbClien
   const wrapped = {
     select: (fields?: Record<string, unknown>) => {
       if (fields && 'blocked' in fields) return { from: () => answer([{ blocked: ledger.blockedInHour }]) }
+      if (fields && 'capped' in fields) return { from: () => answer([{ capped: ledger.cappedInHour }]) }
+      if (fields && 'billable' in fields) return { from: () => answer([{ billable: ledger.billableInHour }]) }
       if (fields && 'eventId' in fields) {
         return { from: () => answer([...ledger.storedEventIds].map((eventId) => ({ eventId }))) }
       }
@@ -159,6 +171,7 @@ describe('POST /v1/usage/ingest', () => {
       rejected: 0,
       duplicates: 0,
       skipped_blocked: 0,
+      skipped_capped: 0,
       cap: 10,
       used: 5,
       remaining: 5,
@@ -196,6 +209,7 @@ describe('POST /v1/usage/ingest', () => {
       rejected: 0,
       duplicates: 0,
       skipped_blocked: 0,
+      skipped_capped: 0,
       cap: 10,
       used: 25,
       remaining: 0,
@@ -633,6 +647,117 @@ describe('POST /v1/usage/ingest hardening', () => {
     })
   })
 
+  describe('agent_capped (zero-unit) events reported by the SDK', () => {
+    it('stores them free, stamped with the reason and with server time', async () => {
+      const state = createState()
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+      const res = await ingest(state, {
+        events: [{ event_type: 'agent_capped', units: 0, occurred_at: threeHoursAgo, metadata: { path: '/a', reason: 'x' } }],
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toMatchObject({ accepted: 1, rejected: 0, skipped_capped: 0, used: 0 })
+      expect(state.inserted[0]).toMatchObject({
+        eventType: 'agent_capped',
+        units: 0,
+        metadata: { path: '/a', reason: 'client_cap' },
+      })
+      expect((state.inserted[0].createdAt as Date).getTime()).toBeGreaterThan(Date.now() - 60_000)
+    })
+
+    it('accepts them over the monthly cap and never debits credits', async () => {
+      const overCap = createState({ org: defaultOrg({ monthlyEventCap: 10 }), usedBase: 10 })
+      expect((await ingest(overCap, { events: [{ event_type: 'agent_capped' }] })).statusCode).toBe(200)
+
+      const credits = createState({ org: defaultOrg({ billingMode: 'credits', creditBalanceEvents: 5 }) })
+      await ingest(credits, { events: [{ event_type: 'agent_capped' }] })
+      expect(credits.org?.creditBalanceEvents).toBe(5)
+    })
+
+    it('stores only what is left of their own hourly allowance and reports skipped_capped', async () => {
+      const state = createState()
+      const ledger = createLedger({
+        cappedInHour: MAX_CAPPED_EVENTS_PER_ORG_PER_HOUR - 2,
+        blockedInHour: MAX_BLOCKED_EVENTS_PER_ORG_PER_HOUR,
+      })
+      const res = await ingestWithLedger(state, ledger, { events: events(5, { event_type: 'agent_capped' }) })
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toMatchObject({ accepted: 2, skipped_capped: 3, skipped_blocked: 0 })
+      expect(state.inserted).toHaveLength(2)
+    })
+
+    it('does not take allowance from agent_blocked rows', async () => {
+      const state = createState()
+      const ledger = createLedger({ cappedInHour: MAX_CAPPED_EVENTS_PER_ORG_PER_HOUR })
+      const res = await ingestWithLedger(state, ledger, {
+        events: [{ event_type: 'agent_capped' }, { event_type: 'agent_blocked' }],
+      })
+      expect(res.json()).toMatchObject({ accepted: 1, skipped_capped: 1, skipped_blocked: 0 })
+      expect(state.inserted.map((row) => row.eventType)).toEqual(['agent_blocked'])
+    })
+  })
+
+  describe('hourly ceiling of billable SDK events per organization', () => {
+    it('is 5% of the period cap and never below the floor', () => {
+      expect(hourlyBillableCeiling(100_000)).toBe(5_000)
+      expect(hourlyBillableCeiling(10)).toBe(MIN_HOURLY_BILLABLE_CEILING)
+      expect(MIN_HOURLY_BILLABLE_CEILING).toBe(500)
+    })
+
+    it('bills up to the ceiling and stores the rest as free agent_capped rows', async () => {
+      const state = createState({ org: defaultOrg({ monthlyEventCap: 100_000 }) })
+      const ledger = createLedger({ billableInHour: 4_998 })
+      const res = await ingestWithLedger(state, ledger, { events: events(5, { metadata: { path: '/a' } }) })
+
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toMatchObject({ accepted: 5, rejected: 0, skipped_capped: 0, used: 2 })
+      const stored = state.inserted.map((row) => [row.eventType, row.units])
+      expect(stored.filter(([type]) => type === 'agent_request')).toEqual([['agent_request', 1], ['agent_request', 1]])
+      expect(stored.filter(([type]) => type === 'agent_capped')).toHaveLength(3)
+      const capped = state.inserted.find((row) => row.eventType === 'agent_capped')
+      expect(capped).toMatchObject({ units: 0, metadata: { path: '/a', reason: 'org_hourly_cap' } })
+    })
+
+    it('uses used + balance as the period cap in credits mode and debits only what it bills', async () => {
+      const state = createState({ org: defaultOrg({ billingMode: 'credits', creditBalanceEvents: 1_000 }) })
+      const ledger = createLedger({ billableInHour: MIN_HOURLY_BILLABLE_CEILING - 1 })
+      const res = await ingestWithLedger(state, ledger, { events: events(3) })
+
+      expect(res.statusCode).toBe(200)
+      expect(state.org?.creditBalanceEvents).toBe(999)
+      expect(state.inserted.map((row) => row.units)).toEqual([0, 0, 1])
+    })
+
+    it('answers 200, not a quota 429, when the whole batch is over the ceiling', async () => {
+      const state = createState({ org: defaultOrg({ monthlyEventCap: 100_000 }) })
+      const ledger = createLedger({ billableInHour: 5_000 })
+      const res = await ingestWithLedger(state, ledger, { events: events(2) })
+
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toMatchObject({ accepted: 2, rejected: 0, used: 0 })
+      expect(state.inserted.map((row) => row.eventType)).toEqual(['agent_capped', 'agent_capped'])
+    })
+
+    it('drops the rows over the ceiling once the agent_capped allowance is used up', async () => {
+      const state = createState({ org: defaultOrg({ monthlyEventCap: 100_000 }) })
+      const ledger = createLedger({ billableInHour: 5_000, cappedInHour: MAX_CAPPED_EVENTS_PER_ORG_PER_HOUR - 1 })
+      const res = await ingestWithLedger(state, ledger, { events: events(3) })
+
+      const body = res.json()
+      expect(body).toMatchObject({ accepted: 1, rejected: 0, duplicates: 0, skipped_capped: 2 })
+      expect(body.accepted + body.rejected + body.duplicates + body.skipped_blocked + body.skipped_capped).toBe(3)
+      expect(state.inserted).toHaveLength(1)
+    })
+
+    it('does not apply to source api events of a platform key', async () => {
+      const state = createState({ org: defaultOrg({ monthlyEventCap: 100_000 }) })
+      const ledger = createLedger({ billableInHour: 5_000 })
+      const res = await ingestWithLedger(state, ledger, { source: 'api', events: events(2) }, { admin: true })
+
+      expect(res.statusCode).toBe(200)
+      expect(state.inserted.map((row) => [row.eventType, row.units])).toEqual([['agent_request', 1], ['agent_request', 1]])
+    })
+  })
+
   describe('internal secret (Canary forward)', () => {
     const CANARY_ORG_ID = '44444444-4444-4444-8444-444444444444'
     const secret = { 'x-internal-secret': config.INTERNAL_AUTH_SECRET }
@@ -660,6 +785,15 @@ describe('POST /v1/usage/ingest hardening', () => {
       const state = createState()
       const res = await forward(state, `/v1/usage/ingest?orgId=${CANARY_ORG_ID}`, secret, {
         events: [{ event_type: 'agent_blocked' }, { event_type: 'agent_request' }],
+      })
+      expect(res.statusCode).toBe(403)
+      expect(state.inserted).toHaveLength(0)
+    })
+
+    it('refuses agent_capped events: only agent_blocked may come in with the secret', async () => {
+      const state = createState()
+      const res = await forward(state, `/v1/usage/ingest?orgId=${CANARY_ORG_ID}`, secret, {
+        events: [{ event_type: 'agent_capped' }],
       })
       expect(res.statusCode).toBe(403)
       expect(state.inserted).toHaveLength(0)
