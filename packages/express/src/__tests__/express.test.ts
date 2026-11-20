@@ -833,4 +833,100 @@ describe('@stealthmark/express — caching of negotiated responses', () => {
       });
     });
   });
+
+  describe('CVE-2026-126755 parser differential & CVE-2026-76807 DNS rebinding guards', () => {
+    it('normalizes percent-encoded and double-slashed manifest paths before routing in Express and Fastify', () => {
+      for (const encodedPath of [
+        '/%2ewell-known/agent%2ejson',
+        '///.well-known//agent.json/',
+        '/api/agent%2dmanifest',
+      ]) {
+        const expRes = runExpress({ siteName: 'Norm' }, encodedPath, {});
+        expect(expRes.res.status).toHaveBeenCalledWith(200);
+        expect(expRes.next).not.toHaveBeenCalled();
+
+        const fastRes = runFastify({ siteName: 'Norm' }, encodedPath, {});
+        expect(fastRes.reply.code).toHaveBeenCalledWith(200);
+        expect(fastRes.done).not.toHaveBeenCalled();
+      }
+    });
+
+    it('blocks NUL byte injection, malformed percent-encoding, and loopback DNS rebinding with 400', () => {
+      for (const badPath of ['/api/data%00.json', '/api/%E0%A4%A']) {
+        const expBad = runExpress({ siteName: 'Norm' }, badPath, {});
+        expect(expBad.res.status).toHaveBeenCalledWith(400);
+        expect(expBad.next).not.toHaveBeenCalled();
+
+        const fastBad = runFastify({ siteName: 'Norm' }, badPath, {});
+        expect(fastBad.reply.code).toHaveBeenCalledWith(400);
+        expect(fastBad.done).not.toHaveBeenCalled();
+      }
+
+      const rebindHeaders = {
+        host: '127.0.0.1:3001',
+        origin: 'https://evil.attacker.invalid',
+      };
+      const expRebind = runExpress({ siteName: 'Norm' }, '/api/test', rebindHeaders);
+      expect(expRebind.res.status).toHaveBeenCalledWith(400);
+      expect(expRebind.next).not.toHaveBeenCalled();
+
+      const fastRebind = runFastify({ siteName: 'Norm' }, '/api/test', rebindHeaders);
+      expect(fastRebind.reply.code).toHaveBeenCalledWith(400);
+      expect(fastRebind.done).not.toHaveBeenCalled();
+
+      // Origin: null from a sandboxed iframe against loopback must also be rejected
+      const nullOriginHeaders = { host: '127.0.0.1:3001', origin: 'null' };
+      expect(runExpress({ siteName: 'Norm' }, '/api/test', nullOriginHeaders).res.status).toHaveBeenCalledWith(400);
+      expect(runFastify({ siteName: 'Norm' }, '/api/test', nullOriginHeaders).reply.code).toHaveBeenCalledWith(400);
+
+      // IPv6 loopback with Origin: null or foreign Origin
+      const ipv6NullHeaders = { host: '[::1]:3001', origin: 'null' };
+      expect(runExpress({ siteName: 'Norm' }, '/api/test', ipv6NullHeaders).res.status).toHaveBeenCalledWith(400);
+      expect(runFastify({ siteName: 'Norm' }, '/api/test', ipv6NullHeaders).reply.code).toHaveBeenCalledWith(400);
+
+      // Genuine DNS rebinding (attacker Host + matching attacker Origin) blocked when allowedHosts is configured
+      const strictConfig = { siteName: 'Norm', allowedHosts: ['127.0.0.1:3001', 'localhost:3001', '[::1]:3001'] };
+      const dnsRebindHeaders = { host: 'rebind.attacker.invalid:3001', origin: 'http://rebind.attacker.invalid:3001' };
+      expect(runExpress(strictConfig, '/api/test', dnsRebindHeaders).res.status).toHaveBeenCalledWith(400);
+      expect(runFastify(strictConfig, '/api/test', dnsRebindHeaders).reply.code).toHaveBeenCalledWith(400);
+
+      // Missing Host fails closed when allowedHosts is configured
+      expect(runExpress(strictConfig, '/api/test', {}).res.status).toHaveBeenCalledWith(400);
+      expect(runFastify(strictConfig, '/api/test', {}).reply.code).toHaveBeenCalledWith(400);
+
+      // Allowed host passes through normally (including bare IPv6 '::1' in allowedHosts)
+      const allowedHeaders = { host: '127.0.0.1:3001', origin: 'http://127.0.0.1:3001' };
+      const expOk = runExpress(strictConfig, '/api/test', allowedHeaders);
+      expect(expOk.next).toHaveBeenCalledTimes(1);
+      const fastOk = runFastify(strictConfig, '/api/test', allowedHeaders);
+      expect(fastOk.done).toHaveBeenCalledTimes(1);
+
+      const ipv6AllowCfg = { siteName: 'Norm', allowedHosts: ['::1'] };
+      expect(runExpress(ipv6AllowCfg, '/api/test', { host: '[::1]:3001' }).next).toHaveBeenCalledTimes(1);
+      expect(runFastify(ipv6AllowCfg, '/api/test', { host: '[::1]:3001' }).done).toHaveBeenCalledTimes(1);
+
+      // Legitimate encoded percent literals (%25) must NOT trigger MALFORMED_URI_ENCODING
+      for (const pctPath of ['/discounts/50%25-off', '/items/100%25']) {
+        expect(runExpress({ siteName: 'Norm' }, pctPath, {}).next).toHaveBeenCalledTimes(1);
+        expect(runFastify({ siteName: 'Norm' }, pctPath, {}).done).toHaveBeenCalledTimes(1);
+      }
+
+      // Non-canonical IPv4 and expanded/wildcard loopback variants must be blocked
+      for (const badHost of ['2130706433', '127.1', '127.0.0.01', '127.0.0.0x1', '']) {
+        expect(runExpress({ siteName: 'Norm' }, '/api/test', { host: badHost }).res.status).toHaveBeenCalledWith(400);
+      }
+      for (const loopbackHost of ['sub.localhost:3001', 'localhost.:3001', '[0:0:0:0:0:0:0:1]:3001', '[::ffff:127.0.0.1]:3001']) {
+        expect(
+          runExpress({ siteName: 'Norm' }, '/api/test', { host: loopbackHost, origin: 'https://evil.invalid' }).res.status
+        ).toHaveBeenCalledWith(400);
+      }
+      // Duplicate Origin array cannot bypass loopback guard
+      expect(
+        runExpress({ siteName: 'Norm' }, '/api/test', {
+          host: '127.0.0.1:3001',
+          origin: ['http://localhost:3000/x', 'https://evil.invalid'] as unknown as string,
+        }).res.status
+      ).toHaveBeenCalledWith(400);
+    });
+  });
 });

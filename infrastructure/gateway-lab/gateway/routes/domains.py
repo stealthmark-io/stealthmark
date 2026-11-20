@@ -2,7 +2,7 @@ import time
 from typing import List, Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from gateway.auth import require_internal_secret
@@ -16,9 +16,8 @@ class DomainConnectModel(BaseModel):
     name: Optional[str] = None
     capabilities: Optional[List[str]] = None
 
-@router.get("/api/v1/domains")
-async def get_registered_domains(request: Request):
-    require_internal_secret(request)
+@router.get("/api/v1/domains", dependencies=[Depends(require_internal_secret)])
+async def get_registered_domains():
     """
     Retrieve registered domain and organization profile directly from Supabase PostgreSQL.
     Bypasses RLS using Secret Manager service_role key.
@@ -41,9 +40,8 @@ async def get_registered_domains(request: Request):
         logger.error(f"[Domains GET error]: {e}")
     return {"domain": "stealthmark.io", "organization": None}
 
-@router.post("/api/v1/domains")
-async def connect_domain(payload: DomainConnectModel, request: Request):
-    require_internal_secret(request)
+@router.post("/api/v1/domains", dependencies=[Depends(require_internal_secret)])
+async def connect_domain(payload: DomainConnectModel):
     """
     Persist domain & organization profile to Supabase organizations & registered_sites.
     Bypasses RLS using Secret Manager service_role key.

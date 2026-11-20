@@ -22,6 +22,9 @@
 import {
   buildEventMetadata,
   createStealthMark,
+  isHostOrOriginAnomalous,
+  normalizeAllowedHosts,
+  normalizeRequestPath,
   resolveAgentIdentifier,
   resolveClientAddress,
   resolveRequestHost,
@@ -29,7 +32,7 @@ import {
   BROTLI_BLOCK_STATUS,
   SAFE_OUTBOUND_ACCEPT_ENCODING,
 } from '@stealthmark/core';
-import type { DetectionResult, StealthMarkConfig, StealthMarkInstance } from '@stealthmark/core';
+import type { DetectionResult, NormalizedAllowedHost, StealthMarkConfig, StealthMarkInstance } from '@stealthmark/core';
 import { canaryFixtureFor, createCanarySigner, isDotfilePath } from './canary.js';
 import type { CanarySigner, DotfilePolicy } from './canary.js';
 import { evaluateAgentBehavior, sanitizeAndNormalizeRequest } from './october-shield.js';
@@ -87,26 +90,39 @@ interface PerimeterEvaluation {
   normalizedPath: string;
 }
 
-function evaluatePerimeterOrBlock(request: NextLikeRequest): PerimeterEvaluation {
+function evaluatePerimeterOrBlock(
+  request: NextLikeRequest,
+  allowedHosts: readonly NormalizedAllowedHost[]
+): PerimeterEvaluation {
   const pathname = request.nextUrl?.pathname ?? new URL(request.url ?? '/', 'http://localhost').pathname;
   const rawHost = request.headers.get('host') ?? '';
+  const pathNorm = normalizeRequestPath(pathname);
   const norm = sanitizeAndNormalizeRequest(pathname, rawHost);
-  if (norm.isBlocked) {
+  const hostAnomalous = isHostOrOriginAnomalous(request.headers, allowedHosts);
+  if (pathNorm.blocked || norm.isBlocked || hostAnomalous) {
+    const anomalies = [...norm.anomalies];
+    if (pathNorm.anomaly && !anomalies.includes(pathNorm.anomaly)) {
+      anomalies.push(pathNorm.anomaly);
+    }
+    if (hostAnomalous && !anomalies.includes('HOST_ORIGIN_DNS_REBINDING_CVE_2026_76807')) {
+      anomalies.push('HOST_ORIGIN_DNS_REBINDING_CVE_2026_76807');
+    }
     return {
       pathname,
-      normalizedPath: norm.normalizedPath,
+      normalizedPath: pathNorm.pathOnly,
       blockedResponse: new Response(
-        JSON.stringify({ error: 'Blocked by StealthMark Edge Shield', anomalies: norm.anomalies }),
+        JSON.stringify({ error: 'Blocked by StealthMark Edge Shield', anomalies }),
         { status: 400, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
       ),
     };
   }
 
-  const threat = evaluateAgentBehavior(norm.normalizedPath, request.headers);
+  const canonicalPath = pathNorm.pathOnly;
+  const threat = evaluateAgentBehavior(canonicalPath, request.headers);
   if (threat.matchedSignatures.includes('INBOUND_BROTLI_PAYLOAD_CVE_2026_111497')) {
     return {
-      pathname,
-      normalizedPath: norm.normalizedPath,
+      pathname: canonicalPath,
+      normalizedPath: canonicalPath,
       blockedResponse: new Response(
         JSON.stringify(BROTLI_BLOCK_BODY),
         {
@@ -123,8 +139,8 @@ function evaluatePerimeterOrBlock(request: NextLikeRequest): PerimeterEvaluation
 
   if (threat.classification === 'MALICIOUS_AGENT_BOTNET') {
     return {
-      pathname,
-      normalizedPath: norm.normalizedPath,
+      pathname: canonicalPath,
+      normalizedPath: canonicalPath,
       blockedResponse: new Response(
         JSON.stringify({ error: 'Autonomous offensive agent detected', signatures: threat.matchedSignatures }),
         { status: 403, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
@@ -133,8 +149,8 @@ function evaluatePerimeterOrBlock(request: NextLikeRequest): PerimeterEvaluation
   }
 
   return {
-    pathname,
-    normalizedPath: norm.normalizedPath,
+    pathname: canonicalPath,
+    normalizedPath: canonicalPath,
   };
 }
 
@@ -170,9 +186,10 @@ function evaluatePerimeterOrBlock(request: NextLikeRequest): PerimeterEvaluation
 export function stealthmark(config: StealthMarkNextConfig) {
   const sm = createStealthMark(config);
   const canary = resolveCanarySigner(config);
+  const allowedHosts = normalizeAllowedHosts(config.allowedHosts);
 
   return async function middleware(request: NextLikeRequest, event?: NextLikeFetchEvent): Promise<Response | undefined> {
-    const perimeter = evaluatePerimeterOrBlock(request);
+    const perimeter = evaluatePerimeterOrBlock(request, allowedHosts);
     if (perimeter.blockedResponse) return perimeter.blockedResponse;
 
     const { pathname, normalizedPath } = perimeter;
@@ -225,9 +242,10 @@ export function withStealthMark<Req extends NextLikeRequest = NextLikeRequest>(
 ) {
   const sm = createStealthMark(config);
   const canary = resolveCanarySigner(config);
+  const allowedHosts = normalizeAllowedHosts(config.allowedHosts);
 
   return async function middleware(request: Req, event?: NextLikeFetchEvent): Promise<Response | undefined> {
-    const perimeter = evaluatePerimeterOrBlock(request);
+    const perimeter = evaluatePerimeterOrBlock(request, allowedHosts);
     if (perimeter.blockedResponse) return perimeter.blockedResponse;
 
     const { pathname, normalizedPath } = perimeter;

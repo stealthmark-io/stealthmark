@@ -1,6 +1,6 @@
 import time
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from gateway import state
@@ -29,10 +29,9 @@ def get_defcon_posture():
         "timestamp": time.time()
     }
 
-@router.post("/api/v1/defcon")
-@router.post("/api/v1/defcon/level")
+@router.post("/api/v1/defcon", dependencies=[Depends(require_internal_secret)])
+@router.post("/api/v1/defcon/level", dependencies=[Depends(require_internal_secret)])
 def update_defcon_posture(body: DefconShiftModel, request: Request):
-    require_internal_secret(request)
     if body.level < 1 or body.level > 5:
         raise HTTPException(status_code=400, detail="Invalid DEFCON level. Must be between 1 and 5.")
     prev_level = state.CURRENT_DEFCON_LEVEL

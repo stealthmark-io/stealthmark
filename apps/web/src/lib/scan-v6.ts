@@ -167,16 +167,61 @@ function evaluateModelsListing(obs: V6Observations): Verdict {
   );
 }
 
+const PHP_MIN_PATCH_BY_BRANCH: Readonly<Record<string, number>> = {
+  '8.2': 36,
+  '8.3': 37,
+  '8.4': 28,
+  '8.5': 13,
+};
+
 function evaluatePhpVersion(obs: V6Observations): Verdict {
   if (!obs.headers) return NO_HEADERS;
   const banner = `${obs.headers['x-powered-by'] ?? ''} ${obs.headers.server ?? ''}`;
-  const match = banner.match(/\bPHP\/(\d+)\.(\d+)/i);
-  if (!match) return { status: 'info', detail: 'The front page does not advertise a PHP version.' };
-  const version = `${match[1]}.${match[2]}`;
-  const supported = Number(match[1]) > 8 || (Number(match[1]) === 8 && Number(match[2]) >= 2);
-  return supported
-    ? { status: 'pass', detail: `The front page advertises PHP ${version}, a branch that still receives security fixes.` }
-    : { status: 'warn', detail: `The front page advertises PHP ${version}, a branch that no longer receives security fixes.` };
+  const matches = Array.from(banner.matchAll(/\bPHP\/(\d+)\.(\d+)(?:\.(\d+))?/gi));
+  if (matches.length === 0) return { status: 'info', detail: 'The front page does not advertise a PHP version.' };
+
+  let bestPass: Verdict | null = null;
+  let infoFallback: Verdict | null = null;
+  for (const match of matches) {
+    const major = Number(match[1]);
+    const minor = Number(match[2]);
+    const patch = match[3] !== undefined ? Number(match[3]) : null;
+    const branch = `${major}.${minor}`;
+    const supported = major > 8 || (major === 8 && minor >= 2);
+    if (!supported) {
+      return {
+        status: 'warn',
+        detail: `The front page advertises PHP ${branch}, a branch that no longer receives security fixes.`,
+      };
+    }
+    const minPatch = PHP_MIN_PATCH_BY_BRANCH[branch];
+    if (minPatch !== undefined) {
+      if (patch === null) {
+        infoFallback ??= {
+          status: 'info',
+          detail: `The front page advertises PHP ${branch} without a patch version, so patch level (8.2.36 / 8.3.37 / 8.4.28 / 8.5.13) cannot be confirmed passively.`,
+        };
+        continue;
+      }
+      if (patch < minPatch) {
+        return {
+          status: 'warn',
+          detail: `The front page advertises PHP ${branch}.${patch}, prior to the ${branch}.${minPatch} security release (CVE-2026-109618 / CVE-2026-109619 / CVE-2026-126714). Distro packages may backport fixes; no vulnerability was probed.`,
+        };
+      }
+      bestPass ??= {
+        status: 'pass',
+        detail: `The front page advertises PHP ${branch}.${patch}, meeting the current security patch baseline (8.2.36 / 8.3.37 / 8.4.28 / 8.5.13).`,
+      };
+    } else {
+      const label = patch !== null ? `${branch}.${patch}` : branch;
+      bestPass ??= {
+        status: 'pass',
+        detail: `The front page advertises PHP ${label}, a branch that still receives security fixes.`,
+      };
+    }
+  }
+  return bestPass ?? infoFallback!;
 }
 
 function evaluateInternalHeaders(obs: V6Observations): Verdict {

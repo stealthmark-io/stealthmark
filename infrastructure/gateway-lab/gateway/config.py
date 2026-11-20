@@ -30,6 +30,23 @@ PASSPORT_HMAC_SECRET = os.getenv("PASSPORT_HMAC_SECRET", "")
 # Number of trusted reverse proxies in front of the gateway; the client IP is the Nth entry from the right of X-Forwarded-For.
 TRUSTED_PROXY_HOPS = int(os.getenv("TRUSTED_PROXY_HOPS", "1") or "1")
 
+# Explicit CORS allowlist for gateway-owned API routes (public discovery/x402 routes set their own CORS headers).
+CORS_ALLOW_ORIGINS = tuple(
+    o.strip()
+    for o in os.getenv(
+        "GATEWAY_CORS_ORIGINS",
+        "https://stealthmark.io,https://www.stealthmark.io,https://gateway.stealthmark.io",
+    ).split(",")
+    if o.strip()
+)
+
+# Optional global Host allowlist (hostname without port). When empty, management routes still enforce loopback/gateway hosts.
+ALLOWED_HOSTS = tuple(
+    h.strip().lower()
+    for h in os.getenv("GATEWAY_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+)
+
 # User-Agent tokens of AI agents and AI crawlers. Mirrors packages/core/src/detect-agent.ts so SDK and gateway bill the same traffic.
 # Generic client tokens (curl, python, bot, spider, postman) are deliberately absent: monitors and search crawlers are not billed.
 # Applebot-Extended and Google-Extended are robots.txt tokens, never sent as a User-Agent, so they are not matched.

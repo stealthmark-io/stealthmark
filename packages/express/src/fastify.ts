@@ -6,11 +6,14 @@
 import { createStealthMark, type StealthMarkConfig } from '@stealthmark/core';
 import {
   NEGOTIATED_CACHE_CONTROL,
+  isHostOrOriginAnomalous,
   isManifestPath,
   meterAgentRequest,
   meterBlockedRequest,
   negotiatedVary,
+  normalizeAllowedHosts,
   normalizeHeadersRecord,
+  normalizeRequestPath,
   tryBlockFastifyBrotli,
 } from './meter.js';
 
@@ -47,6 +50,7 @@ function markNegotiated(reply: FastifyReplyLike): void {
  */
 export function stealthmarkFastify(config: StealthMarkConfig) {
   const sm = createStealthMark(config);
+  const allowedHosts = normalizeAllowedHosts(config.allowedHosts);
 
   return function stealthmarkPreHandler(
     request: FastifyRequestLike,
@@ -59,7 +63,18 @@ export function stealthmarkFastify(config: StealthMarkConfig) {
     }
 
     const rawPath = request.url || '/';
-    const pathOnly = rawPath.split('?')[0];
+    const normalized = normalizeRequestPath(rawPath);
+    if (normalized.blocked || isHostOrOriginAnomalous(request.headers, allowedHosts)) {
+      reply
+        .header('Content-Type', 'application/json; charset=utf-8')
+        .header('Cache-Control', 'no-store');
+      reply.code(400).send({
+        error: 'malformed_or_rebinding_request',
+        anomaly: normalized.anomaly ?? 'HOST_ORIGIN_DNS_REBINDING_CVE_2026_76807',
+      });
+      return;
+    }
+    const pathOnly = normalized.pathOnly;
 
     const agentDetection = sm.detect(headersRecord);
     const isWellKnown = isManifestPath(pathOnly);

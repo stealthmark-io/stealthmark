@@ -11,8 +11,20 @@ import {
   BROTLI_BLOCK_STATUS,
   BROTLI_BLOCK_BODY,
   SAFE_OUTBOUND_ACCEPT_ENCODING,
+  normalizeRequestPath,
+  normalizeAllowedHosts,
+  isHostOrOriginAnomalous,
 } from '@stealthmark/core';
-import type { DetectionResult, StealthMarkInstance, UsageEventType } from '@stealthmark/core';
+import type {
+  DetectionResult,
+  NormalizedAllowedHost,
+  NormalizedRequestPathResult,
+  StealthMarkInstance,
+  UsageEventType,
+} from '@stealthmark/core';
+
+export { normalizeRequestPath, normalizeAllowedHosts, isHostOrOriginAnomalous };
+export type { NormalizedAllowedHost, NormalizedRequestPathResult };
 
 export function normalizeHeadersRecord(
   rawHeaders: Record<string, string | string[] | undefined>

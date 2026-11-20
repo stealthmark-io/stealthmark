@@ -130,3 +130,65 @@ def test_no_key_material_is_hardcoded_in_the_gateway_sources():
     for path, text in sources.items():
         for marker in ("sm_sec_", "x-stealthmark-vip", "Bearer sm_live_", "x-kya-passport"):
             assert marker not in text, f"{marker} found in {path.name}"
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("POST", "/api/v1/defcon", {"bad": "schema"}),
+        ("POST", "/api/v1/defcon/level", {"bad": "schema"}),
+        ("POST", "/api/v1/domains", {"missing_domain": True}),
+        ("GET", "/api/v1/telemetry/events?limit=notanint", None),
+    ],
+)
+def test_control_plane_auth_runs_before_schema_validation(client, internal_secret, method, path, body):
+    res = client.request(method, path, json=body) if body is not None else client.request(method, path)
+    assert res.status_code == 404
+
+
+def test_management_routes_reject_dns_rebinding_host_and_origin(client):
+    for path in ("/health", "/api/v1/defcon", "/api/v1/ping", "/api/v1/telemetry/metrics"):
+        res_host = client.get(path, headers={"host": "evil.dns-rebind.invalid"})
+        assert res_host.status_code == 421, path
+        assert res_host.headers.get("access-control-allow-origin") is None
+
+        res_origin = client.get(path, headers={"host": "127.0.0.1:8082", "origin": "https://evil.dns-rebind.invalid"})
+        assert res_origin.status_code == 403, path
+        assert res_origin.headers.get("access-control-allow-origin") is None
+
+        res_null = client.get(path, headers={"host": "127.0.0.1:8082", "origin": "null"})
+        assert res_null.status_code == 403, path
+
+    # Empty Host and non-canonical IPv4 variants are rejected fail-closed with 400
+    for bad_host in ("", "0177.0.0.1", "127.0.0.01", "127.0.0.0x1", "2130706433", "127.1"):
+        assert client.get("/health", headers={"host": bad_host}).status_code == 400, bad_host
+    # Latin-1 superscript digits (which pass str.isdigit() in Python) are rejected by _parse_host
+    from gateway.shields.host_guard import _parse_host
+    assert _parse_host("127.0.0.1:\xb2") == ("", False)
+
+    # Expanded IPv6, IPv4-mapped IPv6, trailing-dot localhost and *.localhost block cross-origin requests
+    for loopback_host in ("sub.localhost:8082", "localhost.:8082", "[0:0:0:0:0:0:0:1]:8082", "[::ffff:127.0.0.1]:8082"):
+        res_rebind = client.get("/anything", headers={"host": loopback_host, "origin": "https://evil.invalid"})
+        assert res_rebind.status_code == 403, loopback_host
+
+    # Malformed Origin with userinfo or non-HTTP scheme is rejected on management & loopback routes
+    for bad_origin in ("https://evil.com@localhost", "ftp://localhost"):
+        assert client.get("/health", headers={"host": "127.0.0.1:8082", "origin": bad_origin}).status_code == 403, bad_origin
+
+    # Gateway API preflight rejects foreign origins and allows configured origins
+    assert (
+        client.options(
+            "/api/v1/defcon",
+            headers={"origin": "https://evil.invalid", "access-control-request-method": "POST"},
+        ).status_code
+        == 403
+    )
+    ok_pre = client.options(
+        "/api/v1/defcon",
+        headers={"origin": "https://stealthmark.io", "access-control-request-method": "POST"},
+    )
+    assert ok_pre.status_code == 204
+    assert ok_pre.headers.get("access-control-allow-origin") == "https://stealthmark.io"
+
+    assert client.get("/health", headers={"host": "127.0.0.1:8082"}).status_code == 200
+    assert client.get("/health", headers={"host": "127.0.0.1:8082"}).headers.get("access-control-allow-origin") is None

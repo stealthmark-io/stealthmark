@@ -65,6 +65,20 @@ def test_paid_endpoint_preflight_allows_the_payment_headers(client, monkeypatch)
     assert "X-PAYMENT" in res.headers["access-control-allow-headers"]
     assert sent == []
 
+    # Browser CORS preflight from third-party x402 clients must also reach manifests.py and succeed with 204
+    browser_pre = client.options(
+        "/x402/verify-vault",
+        headers={
+            "origin": "https://x402scan.com",
+            "access-control-request-method": "POST",
+            "access-control-request-headers": "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE",
+        },
+    )
+    assert browser_pre.status_code == 204
+    assert browser_pre.headers["access-control-allow-origin"] == "*"
+    assert "X-PAYMENT" in browser_pre.headers["access-control-allow-headers"]
+    assert sent == []
+
 
 @pytest.mark.parametrize(
     "path",

@@ -17,6 +17,7 @@ CORS_PROBE_ORIGIN = "https://cors-probe.stealthmark.io"
 _PHP_VERSION_RE = re.compile(r"\bPHP/(\d+)\.(\d+)(?:\.(\d+))?", re.IGNORECASE)
 # The PHP project's security support for 8.1 ended on 2025-12-31; 8.2 is the oldest supported branch.
 _PHP_OLDEST_SUPPORTED = (8, 2)
+_PHP_MIN_PATCH = {(8, 2): 36, (8, 3): 37, (8, 4): 28, (8, 5): 13}
 _NGINX_VERSION_RE = re.compile(r"\bnginx/(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
 _NODE_VERSION_RE = re.compile(r"\bNode(?:\.js)?/v?(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
 _BUN_VERSION_RE = re.compile(r"\bBun/(\d+)\.(\d+)\.(\d+)", re.IGNORECASE)
@@ -87,14 +88,10 @@ def parse_tech_fingerprint(home: Optional[Fetched]) -> CheckItem:
         if (major, minor) < _PHP_OLDEST_SUPPORTED:
             outdated.append(f"PHP {major}.{minor} (the PHP project no longer ships security fixes for 8.1 and older)")
             break
-        if patch_ver is not None and (
-            ((major, minor) == (8, 2) and patch_ver < 35)
-            or ((major, minor) == (8, 3) and patch_ver < 36)
-            or ((major, minor) == (8, 4) and patch_ver < 27)
-            or ((major, minor) == (8, 5) and patch_ver < 12)
-        ):
+        min_patch = _PHP_MIN_PATCH.get((major, minor))
+        if patch_ver is not None and min_patch is not None and patch_ver < min_patch:
             outdated.append(
-                f"PHP {major}.{minor}.{patch_ver} (prior to CVE-2026-109618 / CVE-2026-109619 CISA KEV patches in 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12)"
+                f"PHP {major}.{minor}.{patch_ver} (prior to CVE-2026-109618 / CVE-2026-109619 / CVE-2026-126714 patches in 8.2.36 / 8.3.37 / 8.4.28 / 8.5.13)"
             )
             break
     for match in _NGINX_VERSION_RE.finditer(hdr_banner):
@@ -175,7 +172,7 @@ def parse_tech_fingerprint(home: Optional[Fetched]) -> CheckItem:
             id="tech_fingerprint",
             title=title,
             status="warn",
-            detail=f"The home page advertises an end-of-life release: {'; '.join(outdated)}. Read from response headers and the generator meta tag; no vulnerability was probed.",
+            detail=f"The home page advertises an outdated or end-of-life release: {'; '.join(outdated)}. Read from response headers and the generator meta tag (distro packages may backport security fixes); no vulnerability was probed.",
             recommendation="Upgrade to a supported release, then stop advertising versions (expose_php = Off, server_tokens off, remove the generator meta tag).",
         )
     detail = f"Stack seen in headers, cookies and meta: {'; '.join(stack)}." if stack else "No stack hints in the Server, X-Powered-By, platform headers, cookies or generator meta tag."

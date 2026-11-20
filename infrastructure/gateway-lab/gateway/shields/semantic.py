@@ -37,7 +37,12 @@ HOSTILE_PATTERNS = [
     r"--\s*$",
     # Mass Assignment / Broken Object Property Level Authorization (OWASP API3:2023 / CWE-915)
     r"\"(?:is_admin|is_superuser|is_staff|isadmin)\"\s*:\s*true",
-    r"\"(?:role|user_role|account_role)\"\s*:\s*\"(?:superadmin|root_admin|system_owner)\""
+    r"\"(?:role|user_role|account_role)\"\s*:\s*\"(?:superadmin|root_admin|system_owner)\"",
+    # METAPI Adaptive Indirect Prompt Injection (arXiv:2611.10026) & Autonomous Offensive Agent Probes (ARTEX)
+    r"<\s*(?:tool_response|function_response|untrusted_data)\s*>[\s\S]{0,400}?(?:ignore|disregard|override|execute_tool)",
+    r"<!--\s*(?:system|instruction|assistant|override|ignore\s+previous)\b",
+    r"\b(?:execute_tool|call_tool|invoke_tool)\s*\(\s*[\"'](?:bash|shell|exec|curl|wget|nc)\b",
+    r"\b(?:artex(?:-pro|-agent|-scanner)?|autonomous[-_ ]pentest[-_ ]agent)\b"
 ]
 
 def scan_semantic_payload(text: str, field_name: str = "field", request: Request = None):

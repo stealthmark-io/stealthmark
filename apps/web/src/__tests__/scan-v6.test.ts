@@ -219,10 +219,26 @@ describe('v6 path probes', () => {
 });
 
 describe('v6 header probes', () => {
-  it('grades the advertised PHP branch', () => {
+  it('grades the advertised PHP branch and patch level against CVE-2026-126714 baselines', () => {
     expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/7.4.33' } })).status).toBe('warn');
-    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.3.1' } })).status).toBe('pass');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.2.35' } })).status).toBe('warn');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.2.36' } })).status).toBe('pass');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.3.1' } })).status).toBe('warn');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.3.36' } })).status).toBe('warn');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.3.37' } })).status).toBe('pass');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.4.27' } })).status).toBe('warn');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.4.28' } })).status).toBe('pass');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.5.12' } })).status).toBe('warn');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.5.13' } })).status).toBe('pass');
+    expect(row('php2shell_oom_memory_guard', observe({ headers: { 'x-powered-by': 'PHP/8.3' } })).status).toBe('info');
+    expect(
+      row(
+        'php2shell_oom_memory_guard',
+        observe({ headers: { 'x-powered-by': 'PHP/8.3', server: 'Apache/2.4 PHP/8.3.36' } })
+      ).status
+    ).toBe('warn');
     expect(row('php2shell_oom_memory_guard', observe()).status).toBe('info');
+    expect(row('php_session_upload_serializer_shield', observe({ headers: { 'x-powered-by': 'PHP/8.3.37' } })).status).toBe('not_assessed');
   });
 
   it('warns when internal middleware headers reach the client', () => {

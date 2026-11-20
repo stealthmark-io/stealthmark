@@ -24,6 +24,14 @@ export {
   BROTLI_BLOCK_BODY,
   hasUnsupportedBrotliEncoding,
 } from './encoding-guard.js';
+export {
+  normalizeRequestPath,
+  normalizeAllowedHosts,
+  isNonCanonicalIpHost,
+  isLoopbackHost,
+  isHostOrOriginAnomalous,
+} from './request-guard.js';
+export type { NormalizedRequestPathResult, NormalizedAllowedHost } from './request-guard.js';
 
 export type { RouteDiscoveryOptions } from './auto-discovery.js';
 

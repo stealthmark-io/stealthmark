@@ -783,4 +783,50 @@ describe('dotfile policy', () => {
       expect(res?.status).toBe(200);
     });
   });
+
+  describe('allowedHosts & DNS-rebinding guard parity with @stealthmark/core', () => {
+    it('enforces allowedHosts and blocks loopback Origin: null in stealthmark() and withStealthMark()', async () => {
+      const cfg = { siteName: 'NextGuard', reportUsage: false, allowedHosts: ['app.example.com', '127.0.0.1:3000'] };
+      const mw = stealthmark(cfg);
+      const handler = vi.fn(() => new Response('ok'));
+      const wrapped = withStealthMark(handler, cfg);
+
+      const rebindReq = {
+        headers: new Headers({ host: 'rebind.attacker.invalid:3000', origin: 'http://rebind.attacker.invalid:3000' }),
+        nextUrl: { pathname: '/api/data' },
+        method: 'GET',
+      };
+      expect((await mw(rebindReq))?.status).toBe(400);
+      expect((await wrapped(rebindReq))?.status).toBe(400);
+      expect(handler).not.toHaveBeenCalled();
+
+      const nullOriginReq = {
+        headers: new Headers({ host: '127.0.0.1:3000', origin: 'null' }),
+        nextUrl: { pathname: '/api/data' },
+        method: 'GET',
+      };
+      expect((await mw(nullOriginReq))?.status).toBe(400);
+      expect((await wrapped(nullOriginReq))?.status).toBe(400);
+
+      const okReq = {
+        headers: new Headers({ host: 'app.example.com', origin: 'https://app.example.com' }),
+        nextUrl: { pathname: '/api/data' },
+        method: 'GET',
+      };
+      expect(await mw(okReq)).toBeUndefined();
+      const wrappedOk = await wrapped(okReq);
+      expect(wrappedOk?.status).toBe(200);
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      // Path normalization parity with @stealthmark/core (double-encoded NUL, //dotfile, malformed %, %25 literals, encoded manifest)
+      const baseMw = stealthmark({ siteName: 'NextNorm', reportUsage: false });
+      expect((await baseMw({ headers: new Headers({ host: 'app.example.com' }), nextUrl: { pathname: '/%2500' }, method: 'GET' }))?.status).toBe(400);
+      expect((await baseMw({ headers: new Headers({ host: 'app.example.com' }), nextUrl: { pathname: '/api/%ZZ' }, method: 'GET' }))?.status).toBe(400);
+      expect((await baseMw({ headers: new Headers({ host: 'app.example.com' }), nextUrl: { pathname: '//.env' }, method: 'GET' }))?.status).toBe(403);
+      expect(await baseMw({ headers: new Headers({ host: 'app.example.com' }), nextUrl: { pathname: '/discounts/50%25-off' }, method: 'GET' })).toBeUndefined();
+      expect(await baseMw({ headers: new Headers({ host: 'app.example.com' }), nextUrl: { pathname: '/items/100%25' }, method: 'GET' })).toBeUndefined();
+      expect((await baseMw({ headers: new Headers({ host: 'app.example.com' }), nextUrl: { pathname: '/%2ewell-known/agent%2ejson' }, method: 'GET' }))?.status).toBe(200);
+      expect((await baseMw({ headers: new Headers({ host: 'app.example.com' }), nextUrl: { pathname: '///.well-known//agent.json/' }, method: 'GET' }))?.status).toBe(200);
+    });
+  });
 });

@@ -1,6 +1,6 @@
 import time
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Depends, Header
 
 from gateway.auth import require_internal_secret
 from gateway.state import RECENT_AUDIT_LOGS, REQUEST_LOG, TELEMETRY
@@ -34,10 +34,9 @@ def get_telemetry_metrics(x_stealthmark_agent: str | None = Header(None)):
         }
     }
 
-@router.get("/api/v1/telemetry/events")
-def get_telemetry_events(request: Request, limit: int = 50):
+@router.get("/api/v1/telemetry/events", dependencies=[Depends(require_internal_secret)])
+def get_telemetry_events(limit: int = 50):
     """Recent request log with client addresses and user agents: control plane only."""
-    require_internal_secret(request)
     limit = max(1, min(limit, 200))
     return {
         "status": "ok",
@@ -45,9 +44,8 @@ def get_telemetry_events(request: Request, limit: int = 50):
         "events": list(RECENT_AUDIT_LOGS)[:limit]
     }
 
-@router.post("/api/v1/telemetry/reset")
-def reset_telemetry(request: Request):
-    require_internal_secret(request)
+@router.post("/api/v1/telemetry/reset", dependencies=[Depends(require_internal_secret)])
+def reset_telemetry():
     TELEMETRY["requests_total"] = 0
     TELEMETRY["threats_blocked"]["semantic_injections"] = 0
     TELEMETRY["threats_blocked"]["spoofed_identities"] = 0

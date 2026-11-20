@@ -2,12 +2,12 @@ from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.middleware.cors import CORSMiddleware
 
 from gateway import config, metering, state
 from gateway.routes import audit_v2, blueprint, defcon, domains, manifests, microservices_v2, products, proxy, scanner, telemetry
 from gateway.shields.defcon import defcon_perimeter_enforcer
 from gateway.shields.errors import ShieldBlock
+from gateway.shields.host_guard import gateway_cors_middleware, host_origin_rebinding_guard
 from gateway.shields.payload_guard import payload_size_guard
 from gateway.shields.security_headers import security_headers_middleware
 
@@ -27,17 +27,12 @@ def create_app(lab_routes: Optional[bool] = None, public_docs: Optional[bool] = 
         openapi_url="/openapi.json" if docs else None,
     )
 
-    application.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    # Payload size limiter first, then the active DEFCON perimeter posture.
+    # Starlette HTTP middlewares execute LIFO (last registered runs outermost/first on requests):
+    # security_headers -> host_origin_rebinding_guard -> gateway_cors_middleware -> defcon -> payload_size_guard.
     application.middleware("http")(payload_size_guard)
     application.middleware("http")(defcon_perimeter_enforcer)
+    application.middleware("http")(gateway_cors_middleware)
+    application.middleware("http")(host_origin_rebinding_guard)
     # Added last so it is outermost and also covers answers the shields above produce themselves.
     application.middleware("http")(security_headers_middleware)
 

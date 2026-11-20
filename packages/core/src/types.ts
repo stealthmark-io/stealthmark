@@ -85,6 +85,8 @@ export interface StealthMarkConfig {
   agentPatterns?: string[];
   /** Handling of agent requests on ordinary paths (default 'observe') */
   agentPolicy?: AgentPolicy;
+  /** Optional allowlist of accepted Host headers (with or without port) to block browser DNS rebinding. */
+  allowedHosts?: string[];
   /** Custom response headers to add to all responses */
   headers?: Record<string, string>;
 }

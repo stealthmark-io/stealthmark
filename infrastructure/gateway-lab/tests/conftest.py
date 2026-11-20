@@ -16,7 +16,7 @@ from starlette.requests import Request
 
 from gateway import config, metering, state, targets
 from gateway.abuse_guard import EventGate
-from gateway.shields import passport
+from gateway.shields import host_guard, passport
 from gateway import postgrest as postgrest_client
 from gateway.app import app, create_app
 from gateway.routes import scanner
@@ -68,6 +68,7 @@ def isolated_gateway_state(tmp_path, monkeypatch):
     monkeypatch.setattr(audit_v2, "_tls_cert_fetcher", lambda domain: None)
     audit_v2._audit_counts.clear()
     monkeypatch.setattr(passport, "PASSPORT_HMAC_SECRET", "")
+    monkeypatch.setattr(host_guard, "_TEST_MANAGEMENT_HOSTS", frozenset({"testserver"}))
     monkeypatch.setattr(config, "INTERNAL_AUTH_SECRET", "")
     monkeypatch.setattr(targets, "resolve_addresses", fake_dns({}))
     monkeypatch.setattr(urllib.request, "urlopen", internetdb_unreachable)
