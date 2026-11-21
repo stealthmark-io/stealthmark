@@ -1,7 +1,11 @@
 import React from "react";
 import Link from "next/link";
 import { ArrowRight, Building2, CheckCircle2, AlertTriangle, Mail, ShieldCheck } from "lucide-react";
-import { SCAN_CHECK_COUNT } from "@/lib/readiness-report";
+import {
+  SCAN_CHECK_COUNT,
+  SCAN_MEASURED_COUNT,
+  SCAN_NOT_ASSESSED_COUNT,
+} from "@/lib/readiness-report";
 
 const SECURITY_PILLARS = [
   {
@@ -11,8 +15,8 @@ const SECURITY_PILLARS = [
   },
   {
     vol: "PILLAR 02",
-    title: "Application Auth, Session & Cloud Architecture Review",
-    desc: "Technical review of authentication flows, JWT/cookie session isolation, API rate limiting, SSRF boundaries, and cloud origin exposure.",
+    title: "Post-Login AuthZ, IDOR, Session & MCP Runtime Audit",
+    desc: `Our passive external scanner verifies ${SCAN_MEASURED_COUNT} measured controls from outside across the ${SCAN_CHECK_COUNT}-point matrix, while ${SCAN_NOT_ASSESSED_COUNT} need internal access—including multi-tenant IDOR isolation, OAuth/session binding, checkout race conditions, and internal MCP server controls.`,
   },
   {
     vol: "PILLAR 03",

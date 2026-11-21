@@ -6,6 +6,7 @@ export { stealthmark, withStealthMark, defaultMatcher } from './middleware.js';
 export type { NextLikeRequest, StealthMarkNextConfig } from './middleware.js';
 export type { DotfilePolicy } from './canary.js';
 export {
+  normalizeStructuralPath,
   sanitizeAndNormalizeRequest,
   evaluateAgentBehavior,
   validateMcpPayloadAndToken,
